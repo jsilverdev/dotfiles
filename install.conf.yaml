@@ -3,11 +3,18 @@
       create: true
       relink: true
 
-- clean: ['~']
+- clean: ['~', '${XDG_CONFIG_HOME}']
+
+- shell:
+  - description: Set XDG environmental variables
+    command: source ./config/zsh/.zshenv
 
 - link:
     # zsh
-    ~/.zshrc: config/zsh/.zshrc
+    ~/.zshenv:
+      path: config/zsh/.zshenv
+      force: true
+    ~/.config/zsh: config/zsh
 
     # General config
     ~/.bash_profile: config/general/.bash_profile
