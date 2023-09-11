@@ -36,9 +36,8 @@ zinit ice depth=1; zinit light romkatv/powerlevel10k
 
 source ${zsh_dir}/lib/completions.zsh
 
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-
+# Import P10k config for command prompt, run `p10k configure` or edit
+[[ ! -f ${zsh_dir}/.p10k.zsh ]] || source ${zsh_dir}/.p10k.zsh
 
 ### Bind keys
 
