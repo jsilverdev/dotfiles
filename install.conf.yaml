@@ -6,10 +6,13 @@
 - clean: ['~']
 
 - link:
-    ~/.bash_profile: bash_profile
-    ~/.bashrc: bashrc
-    ~/.gitconfig: gitconfig
-    ~/.tmux.conf: tmux.conf
-    ~/.vimrc: vimrc
-    ~/.zshrc: zshrc
-    ~/.fdignore: config/fd/.fdignore
+    # zsh
+    ~/.zshrc: config/zsh/.zshrc
+
+    # General config
+    ~/.bash_profile: config/general/.bash_profile
+    ~/.bashrc: config/general/.bashrc
+    ~/.gitconfig: config/general/.gitconfig
+    ~/.fdignore: config/general/.gitignore_global
+    ~/.tmux.conf: config/general/.tmux.conf
+    ~/.vimrc: config/general/.vimrc
