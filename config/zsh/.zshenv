@@ -25,6 +25,7 @@ export PYENV_ROOT="$HOME/.pyenv"
 
 export ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
 
+export NVM_DIR="${XDG_CONFIG_HOME}/nvm"
 
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';
