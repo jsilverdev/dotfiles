@@ -1,0 +1,41 @@
+# System
+.config
+.cache/
+.fonts
+.icons
+.kde4
+.local
+.gnome
+.var
+.nv
+.themes/
+
+# node
+.nvm
+.npm
+
+# Web
+.zoom
+.mozilla
+.thunderbird
+
+# Java & android
+.java
+.android
+Android
+.gradle
+
+# Dart & Flutter
+.dart
+.dartServer
+flutter-sdk
+.pub-cache
+
+# Docker
+.docker
+
+# Editors
+Postman
+.azuredatastudio
+.pki/
+.vscode

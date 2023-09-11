@@ -1,3 +1,8 @@
+- defaults:
+    link:
+      create: true
+      relink: true
+
 - clean: ['~']
 
 - link:
@@ -7,6 +12,4 @@
     ~/.tmux.conf: tmux.conf
     ~/.vimrc: vimrc
     ~/.zshrc: zshrc
-    ~/.xinitrc: xinitrc
-
-
+    ~/.fdignore: config/fd/.fdignore
