@@ -18,7 +18,7 @@ if [ -x "$(command -v fd)" ]; then
 fi
 
 # Add forgit option for git stash
-FORGIT_STASH_FZF_OPTS='
+export FORGIT_STASH_FZF_OPTS='
 --bind="ctrl-d:reload(git stash drop $(cut -d: -f1 <<<{}) 1>/dev/null && git stash list),ctrl-space:reload(git stash pop $(cut -d: -f1 <<<{}) 1>/dev/null && git stash list)"
 '
 
