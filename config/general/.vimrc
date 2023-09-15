@@ -8,3 +8,5 @@ set number
 
 set synmaxcol=40
 
+set listchars+=space:␣
+
