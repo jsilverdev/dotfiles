@@ -2,7 +2,7 @@ alias zshrc="vim ${zsh_dir}/.zshrc"
 alias reloadzsh="source ${zsh_dir}/.zshrc"
 
 # Explorer it
-[ -x "$(command -v dolphin)" ] && alias exploreit="dolphin ."
+alias exploreit="xdg-open ."
 
 # Getting outa directories
 alias c.='cd ..'

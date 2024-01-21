@@ -26,10 +26,6 @@ if [ -x "$(command -v $FD_COMMAND)" ]; then
  export FZF_ALT_C_OPTS="--bind='alt-v:reload($FD_COMMAND --type d --hidden --no-ignore --exclude .git),alt-c:reload($FZF_ALT_C_COMMAND)' $FZF_DEFAULT_OPS --preview 'tree -C {} | head -200'"
 fi
 
-# Add forgit option for git stash
-export FORGIT_STASH_FZF_OPTS='
---bind="ctrl-d:reload(git stash drop $(cut -d: -f1 <<<{}) 1>/dev/null && git stash list),ctrl-space:reload(git stash pop $(cut -d: -f1 <<<{}) 1>/dev/null && git stash list)"
-'
 
 # Define Chrome executable
 if [ -x "$(command -v google-chrome)" ]; then
