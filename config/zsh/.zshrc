@@ -1,4 +1,4 @@
-zsh_dir="${${ZDOTDIR}:-$HOME/.config/zsh}"
+zsh_dir="${ZDOTDIR:-$HOME/.config/zsh}"
 
 source "${zsh_dir}/lib/completions.zsh"
 source "${zsh_dir}/lib/key-bindings.zsh"
