@@ -15,7 +15,7 @@ export PAGER="less"
 export CARGO_HOME="${XDG_DATA_HOME}/cargo"
 export DOCKER_CONFIG="${XDG_CONFIG_HOME}/docker"
 
-export GIT_CONFIG="${XDG_CONFIG_HOME}/git/.gitconfig"
+# export GIT_CONFIG="${XDG_CONFIG_HOME}/git/.gitconfig"
 
 export LESSHISTFILE="-" # Disable less history.
 
