@@ -41,8 +41,18 @@ zinit ice wait lucid
 zinit snippet OMZP::git
 
 if [ "$EUID" -ne 0 ]; then
+# nvm deactivate && nvm uninstall
 zinit ice wait lucid
-zinit load lukechilds/zsh-nvm
+zinit for \
+    as'completion' \
+    atclone"./fnm completions --shell zsh > _fnm.zsh" \
+    atload'eval "$(fnm env --use-on-cd --shell zsh)"' \
+    atpull'%atclone' \
+    blockf \
+    from'gh-r' \
+    nocompile \
+    sbin'fnm' \
+  @Schniz/fnm
 fi
 
 zinit ice wait lucid
