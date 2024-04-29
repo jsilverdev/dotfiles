@@ -30,7 +30,7 @@
       exclude:
         - config/zsh/.ssh.p10k.zsh
     ~/.config/zsh/.p10k.zsh:
-      if: '[ [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ] ]'
+      if: '[ [ -n `$SSH_CLIENT` ] || [ -n `$SSH_TTY` ] ]'
       path: config/zsh/.ssh.p10k.zsh
       relink: true
       force: true
