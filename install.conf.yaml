@@ -5,6 +5,11 @@
 
 - clean: ['~', '${XDG_CONFIG_HOME}']
 
+- clean:
+    ~/.config/zsh:
+      force: true
+      recursive: true
+
 - shell:
   - description: Set XDG environmental variables
     command: source ./config/zsh/.zshenv
@@ -14,7 +19,21 @@
     ~/.zshenv:
       path: config/zsh/.zshenv
       force: true
-    ~/.config/zsh: config/zsh
+    ~/.config/zsh:
+      path: config/zsh/*
+      glob: true
+      force: true
+    ~/.config/zsh/:
+      path: config/zsh/*.
+      glob: true
+      force: true
+      exclude:
+        - config/zsh/.ssh.p10k.zsh
+    ~/.config/zsh/.p10k.zsh:
+      if: '[ [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ] ]'
+      path: config/zsh/.ssh.p10k.zsh
+      relink: true
+      force: true
 
     # General config
     ~/.bash_profile: config/general/.bash_profile
