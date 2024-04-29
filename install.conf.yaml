@@ -24,7 +24,7 @@
       glob: true
       force: true
     ~/.config/zsh/:
-      path: config/zsh/*.
+      path: config/zsh/.*
       glob: true
       force: true
       exclude:
