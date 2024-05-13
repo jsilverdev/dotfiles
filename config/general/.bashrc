@@ -136,6 +136,3 @@ ex ()
   fi
 }
 
-# flutter
-FLUTTER_PATH_TO_SDKBIN="$HOME/flutter-sdk/bin"
-[ -d $FLUTTER_PATH_TO_SDKBIN ] && export PATH="$PATH:$FLUTTER_PATH_TO_SDKBIN"

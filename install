@@ -1,15 +1,34 @@
 #!/usr/bin/env bash
 
-set -e
+SRC_DIR=$(dirname "${0}")
+DOTFILES_DIR="${DOTFILES_DIR:-${SRC_DIR:-$HOME/.dotfiles}}"
 
-CONFIG="install.conf.yaml"
-DOTBOT_DIR="lib/dotbot"
+function pre_setup_tasks() {
+    if [ ! -d "$DOTFILES_DIR" ]; then
+        echo "The folder '$DOTFILES_DIR' not exists exiting...";
+        exit 1;
+    fi
+}
 
-DOTBOT_BIN="bin/dotbot"
-BASEDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+function setup_dot_files () {
 
-cd "${BASEDIR}"
-git -C "${DOTBOT_DIR}" submodule sync --quiet --recursive
-git submodule update --init --recursive "${DOTBOT_DIR}"
+    DOTBOT_DIR="lib/dotbot"
+    DOTBOT_CONF_FILE="install.conf.yaml"
 
-"${BASEDIR}/${DOTBOT_DIR}/${DOTBOT_BIN}" -d "${BASEDIR}" -c "${CONFIG}" "${@}"
+    cd "$DOTFILES_DIR" && \
+        git -C "$DOTBOT_DIR" submodule sync --quiet --recursive && \
+        git submodule update --init --recursive "$DOTBOT_DIR" && \
+        "${DOTFILES_DIR}/${DOTBOT_DIR}/bin/dotbot" -d "$DOTFILES_DIR" -c "$DOTBOT_CONF_FILE"
+}
+
+
+function install_packages() {
+    ## Install Puro
+    curl -o- https://puro.dev/install.sh | bash
+
+}
+
+
+pre_setup_tasks
+setup_dot_files
+install_packages
