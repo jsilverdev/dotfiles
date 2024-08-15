@@ -7,7 +7,7 @@ if (Test-Path -Path $PS_USER_FOLDER) {
 $ENV:STARSHIP_CONFIG = "$HOME\.config\starship.toml"
 
 function Invoke-Starship-PreCommand {
-    $host.ui.RawUI.WindowTitle = "$env:USERNAME@$env:COMPUTERNAME`: $pwd `a"
+    $host.ui.RawUI.WindowTitle = "PowerShell:` $pwd `a"
 }
 Invoke-Expression (&starship init powershell)
 
