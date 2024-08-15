@@ -1,0 +1,110 @@
+"$schema" = "https://starship.rs/config-schema.json"
+
+add_newline = false
+
+format = """
+[](fg:#212736)\
+$os\
+$directory\
+[](fg:#1d99f3 bg:#394260)\
+$git_branch\
+$git_status\
+[](fg:#394260 bg:#212736)\
+$dart\
+$golang\
+$java\
+$nodejs\
+$php
+$python\
+$rust\
+$terraform\
+$package\
+[](fg:#212736)\
+$character"""
+
+[character]
+success_symbol = "[ ❯](#03edf9)"
+error_symbol = "[ ](#fe4450)"
+
+[os]
+format = "[$symbol ]($style)"
+style = "fg:#ffffff bg:#212736"
+
+[os.symbols]
+Android = " "
+Arch = " "
+CentOS = " "
+Debian = " "
+EndeavourOS = " "
+Fedora = " "
+Linux = " "
+Macos = " "
+Manjaro = " "
+NixOS = " "
+Raspbian = " "
+RockyLinux = " "
+Ubuntu = " "
+Unknown = " "
+Windows = "󰍲 "
+
+[directory]
+style = "fg:#e3e5e5 bg:#1d99f3"
+format = "[ $path ]($style)"
+truncate_to_repo = false
+truncation_length = 3
+truncation_symbol = "…/"
+# use_os_path_sep = false
+
+[git_branch]
+symbol = ""
+style = "bg:#394260"
+format = '[[ $symbol $branch ](fg:#1d99f3 bg:#394260)]($style)'
+
+[git_status]
+style = "bg:#394260"
+format = '[[($all_status$ahead_behind )](fg:#1d99f3 bg:#394260)]($style)'
+
+[nodejs]
+symbol = ""
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[rust]
+symbol = ""
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[golang]
+symbol = ""
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[php]
+symbol = " "
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[python]
+symbol = " "
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[dart]
+symbol = " "
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[java]
+symbol = " "
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[terraform]
+symbol = "󱁢 "
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'
+
+[package]
+symbol = " "
+style = "bg:#212736"
+format = '[[ $symbol ($version) ](fg:#1d99f3 bg:#212736)]($style)'

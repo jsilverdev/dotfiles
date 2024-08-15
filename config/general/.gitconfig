@@ -3,32 +3,12 @@
 	email = jrp8900@gmail.com
 [credential]
 	helper = store
+[credential "helperselector"]
+    selected = store
 [init]
 	defaultBranch = main
 [core]
+	sshCommand = ssh -i ~/.ssh/jsilverdev_gh_key
 	editor = code --wait
-[pager]
-    diff = delta
-    log = delta
-    reflog = delta
-    show = delta
-
-[interactive]
-    diffFilter = delta --color-only --features=interactive
-
-[delta]
-    features = decorations
-
-[delta "interactive"]
-    keep-plus-minus-markers = false
-
-[delta "decorations"]
-    commit-decoration-style = blue ol
-    commit-style = raw
-    file-style = omit
-    hunk-header-decoration-style = blue box
-    hunk-header-file-style = red
-    hunk-header-line-number-style = "#067a00"
-    hunk-header-style = file line-number syntax
 [push]
 	autoSetupRemote = true
