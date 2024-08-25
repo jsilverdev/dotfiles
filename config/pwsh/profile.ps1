@@ -4,7 +4,7 @@ if (Test-Path -Path $PS_USER_FOLDER) {
 } else {
     $PS_USER_FOLDER = "$HOME"
 }
-$ENV:STARSHIP_CONFIG = "$HOME\.config\starship.toml"
+$ENV:STARSHIP_CONFIG = "$HOME\.config\starship\config.toml"
 
 function Invoke-Starship-PreCommand {
     $host.ui.RawUI.WindowTitle = "PowerShell:` $pwd `a"

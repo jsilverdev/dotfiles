@@ -4,3 +4,15 @@
       relink: true
 
 - clean: ['~']
+
+- link:
+    # starship
+    ~/.config/starship:
+      path: config/starship
+      force: true
+      create: true
+    # profile
+    ~/Documents/PowerShell/profile.ps1:
+      path: config/pwsh/profile.ps1
+      force: true
+      create: true
