@@ -7,12 +7,19 @@
 
 - link:
     # starship
-    ~/.config/starship:
-      path: config/starship
+    ~/.config/starship/:
+      glob: true
+      path: config/starship/*
       force: true
       create: true
     # profile
-    ~/Documents/PowerShell/profile.ps1:
+    ${PROFILE_LOCATION}:
       path: config/pwsh/profile.ps1
       force: true
       create: true
+    # Git
+    ~/:
+      glob: true
+      path: config/general/.*
+      relink: true
+      exclude: [ "config/general/.gitignore_global" ]

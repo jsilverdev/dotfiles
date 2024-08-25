@@ -40,5 +40,4 @@
     ~/.bashrc: config/general/.bashrc
     ~/.gitconfig: config/general/.gitconfig
     ~/.fdignore: config/general/.gitignore_global
-    ~/.tmux.conf: config/general/.tmux.conf
     ~/.vimrc: config/general/.vimrc
