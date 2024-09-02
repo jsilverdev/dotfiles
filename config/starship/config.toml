@@ -69,6 +69,7 @@ truncate_to_repo = false
 truncation_length = 3
 truncation_symbol = "…/"
 use_os_path_sep = false
+fish_style_pwd_dir_length=1
 
 [git_branch]
 symbol = ""
