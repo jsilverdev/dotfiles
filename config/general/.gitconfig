@@ -8,7 +8,10 @@
 [init]
 	defaultBranch = main
 [core]
-	sshCommand = ssh -i ~/.ssh/jsilverdev_gh_key
+	sshCommand = ssh -i ~/.ssh/jsilverdev_github
+	longpaths = true
 	editor = code --wait
 [push]
 	autoSetupRemote = true
+[include]
+path = ~/.gitconfig.local
