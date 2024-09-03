@@ -5,6 +5,13 @@
 
 - clean: ['~']
 
+- shell:
+  -
+    command: powershell -Command "$ENV:PROFILE_LOCATION = $profile.CurrentUserAllHosts"
+    description: Load PROFILE_LOCATION
+    stdin: true
+    quiet: true
+
 - link:
     # starship
     ~/.config/starship/:
@@ -13,6 +20,10 @@
       force: true
       create: true
     # profile
+    ~/env.ps1:
+      path: config/pwsh/env.ps1
+      force: true
+      create: true
     ${PROFILE_LOCATION}:
       path: config/pwsh/profile.ps1
       force: true
