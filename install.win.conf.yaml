@@ -34,3 +34,7 @@
       path: config/general/.*
       relink: true
       exclude: [ "config/general/.gitignore_global" ]
+    ~/.fdignore:
+      path: config/general/.gitignore_global
+      force: true
+      create: true
