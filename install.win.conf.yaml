@@ -5,13 +5,6 @@
 
 - clean: ['~']
 
-- shell:
-  -
-    command: powershell -Command "$ENV:PROFILE_LOCATION = $profile.CurrentUserAllHosts"
-    description: Load PROFILE_LOCATION
-    stdin: true
-    quiet: true
-
 - link:
     # starship
     ~/.config/starship/:
