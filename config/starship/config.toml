@@ -41,26 +41,26 @@ success_symbol = "[ ❯](color_bright_blue)"
 error_symbol = "[ ](color_red)"
 
 [os]
-format = "[$symbol]($style)"
+format = "[$symbol ]($style)"
 style = "bg:color_gray fg:color_blue"
 disabled = false
 
 [os.symbols]
-Android = " "
-Arch = " "
-CentOS = " "
-Debian = " "
-EndeavourOS = " "
-Fedora = " "
-Linux = " "
-Macos = " "
-Manjaro = " "
-NixOS = " "
-Raspbian = " "
-RockyLinux = " "
-Ubuntu = " "
-Unknown = " "
-Windows = "󰍲 "
+Android = ""
+Arch = ""
+CentOS = ""
+Debian = ""
+EndeavourOS = ""
+Fedora = ""
+Linux = ""
+Macos = ""
+Manjaro = ""
+NixOS = ""
+Raspbian = ""
+RockyLinux = ""
+Ubuntu = ""
+Unknown = ""
+Windows = "󰍲"
 
 [directory]
 style = "fg:color_light_gray bg:color_blue"
@@ -95,53 +95,53 @@ behind = ' ⇣${count}'
 
 [git_commit]
 style = "fg:color_blue bg:color_gray"
-format = "[ @$hash $tag]($style)"
+format = "[ ($tag )@$hash ]($style)"
 only_detached=true
 disabled=false
 tag_disabled=false
-tag_symbol = " "
+tag_symbol = "tags/"
 
 [nodejs]
 symbol = ""
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#87c332 bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#87c332 bg:color_dark_gray)]($style)'
 
 [rust]
 symbol = ""
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#ff491b bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#ff491b bg:color_dark_gray)]($style)'
 
 [golang]
 symbol = ""
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#4fd7e3 bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#4fd7e3 bg:color_dark_gray)]($style)'
 
 [php]
-symbol = " "
+symbol = ""
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#943b98 bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#943b98 bg:color_dark_gray)]($style)'
 
 [python]
-symbol = " "
+symbol = ""
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#ffd252 bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#ffd252 bg:color_dark_gray)]($style)'
 
 [dart]
-symbol = " "
+symbol = ""
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#00b9f1 bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#00b9f1 bg:color_dark_gray)]($style)'
 
 [java]
-symbol = " "
+symbol = ""
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#ff9637 bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#ff9637 bg:color_dark_gray)]($style)'
 
 [terraform]
-symbol = "󱁢 "
+symbol = "󱁢"
 style = "bg:color_dark_gray"
-format = '[[ $symbol ($version) ](fg:#574ce3 bg:color_dark_gray)]($style)'
+format = '[[ $symbol( $version) ](fg:#574ce3 bg:color_dark_gray)]($style)'
 
 [package]
-symbol = " "
+symbol = ""
 style = "bg:color_dark_gray"
-format = '[](fg:color_dark_gray bg:color_blue)[[ $symbol($version) ](fg:color_dark_gray bg:color_blue)]($style)[](fg:color_blue bg:color_dark_gray)'
+format = '[](fg:color_dark_gray bg:color_blue)[[ $symbol( $version) ](fg:color_dark_gray bg:color_blue)]($style)[](fg:color_blue bg:color_dark_gray)'
