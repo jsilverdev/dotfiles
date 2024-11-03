@@ -112,8 +112,18 @@ foreach ($app in $apps) {
     InstallWithWinget -appId $app
 }
 # Install must-have modules
-Install-Module -Name PSFzf -Scope CurrentUser -Force
-Install-Module git-aliases -Scope CurrentUser -AllowClobber
+if (-not (Get-Module -ListAvailable -Name PSFzf)) {
+    Install-Module -Name PSFzf -Scope CurrentUser -Force
+}
+else {
+    Write-Host "PSFzf module is already installed" -ForegroundColor Green
+}
+if (-not (Get-Module -ListAvailable -Name git-aliases)) {
+    Install-Module -Name git-aliases -Scope CurrentUser -AllowClobber
+}
+else {
+    Write-Host "git-aliases module is already installed" -ForegroundColor Green
+}
 ### End Installing must-have apps
 
 ### Start Installing optional apps
