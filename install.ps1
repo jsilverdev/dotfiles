@@ -89,6 +89,31 @@ function InstallPuroFVM {
     Invoke-WebRequest -Uri "https://puro.dev/builds/$tagName/windows-x64/puro.exe" -OutFile "$env:temp\puro.exe"; &"$env:temp\puro.exe" install-puro --promote
 
 }
+
+function FindPython3 {
+    $python3Paths = Get-Command -Name python* -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path | Where-Object { $_ -match "python3" }
+    foreach ($path in $python3Paths) {
+        $pythonVersion = & $path --version 2>&1
+        if ($? -and $pythonVersion) {
+            return $path
+        }
+    }
+    return ""
+}
+function InstallPython3 {
+    $wingetPython3 = winget search "python.python.3" | Select-String "Python.Python" | ForEach-Object {
+        # Extract both the Id (package name) and Version using regex
+        if ($_ -match '(\S+)\s+(\S+)\s+(\d+\.\d+\.\d+)') {
+            # Return both Id and Version as an object
+            [PSCustomObject]@{
+                Id      = $Matches[2]
+                Version = [Version]$Matches[3]
+            }
+        }
+    } | Sort-Object Version -Descending | Select-Object -First 1
+    winget install -e --id $wingetPython3.Id
+    RefreshPath
+}
 ### End Utils
 
 ### Start Pre-requirements
@@ -111,8 +136,7 @@ $apps = @(
     @{ id = "dandavison.delta"; alias = "delta" },
     @{ id = "Microsoft.VisualStudioCode"; alias = "code" },
     @{ id = "Starship.Starship"; alias = "starship" },
-    @{ id = "Microsoft.PowerToys"; alias = "" },
-    @{ id = "Python.Python.3.12" ; alias = "" } # for dotbot
+    @{ id = "Microsoft.PowerToys"; alias = "" }
 )
 
 foreach ($app in $apps) {
@@ -133,29 +157,6 @@ else {
 }
 ### End Installing must-have apps
 
-### Start Installing optional apps
-Write-Host "-----------------------------------" -ForegroundColor Cyan
-Write-Host "         Choose to Install"
-Write-Host "-----------------------------------" -ForegroundColor Cyan
-Write-Host "1. Install fnm"
-Write-Host "2. Install puro"
-Write-Host "-----------------------------------" -ForegroundColor Cyan
-
-$rawOptions = Read-Host "Select one or more options separated by commas [1,2]"
-$options = $rawOptions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" } | Select-Object -Unique
-
-foreach ($opt in $options) {
-    switch ($opt) {
-        "1" { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" }
-        "2" { InstallPuroFVM }
-        default { Write-Host "Invalid option: $opt" -ForegroundColor Red }
-    }
-}
-### End Installing optional apps
-
-## Refresh Path
-RefreshPath
-
 ### Start DotBot
 $CONFIG = "install.win.conf.yaml"
 $DOTBOT_DIR = "lib/dotbot"
@@ -167,21 +168,47 @@ Set-Location $BASEDIR
 git -C $DOTBOT_DIR submodule sync --quiet --recursive
 git submodule update --init --recursive $DOTBOT_DIR
 
-$python3Paths = Get-Command -Name python* -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path | Where-Object { $_ -match "python3" }
-foreach ($path in $python3Paths) {
-    if (Test-Path $path) {
-        $PYTHON = $path
-        break
+$PYTHON = FindPython3
+if ([string]::IsNullOrEmpty($PYTHON)) {
+    Write-Host "Cannot find Python 3. Installing..." -ForegroundColor Yellow
+    InstallPython3
+    $PYTHON = FindPython3
+
+    if ([string]::IsNullOrEmpty($PYTHON)) {
+        Write-Host "Error: Python can't not be found. Aborting..." -ForegroundColor Red
+        exit
     }
 }
+Write-Host "Running Dotbot..." -ForegroundColor Cyan
+$env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
+&$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG $Args
 
-if (![string]::IsNullOrEmpty($PYTHON) -and ![string]::IsNullOrEmpty((&$PYTHON --version))) {
-
-    ## PROFILE_LOCATION:
-    $env:PROFILE_LOCATION = $profile.CurrentUserAllHosts
-
-    &$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG $Args
-    return
-}
-Write-Host "Error: Cannot find Python. Abort configure Dotbot" -ForegroundColor Red
 ### End DotBot
+
+### Start Installing optional apps
+Write-Host "             Optionals"
+Write-Host "-----------------------------------" -ForegroundColor Cyan
+Write-Host "         Choose to Install"
+Write-Host "-----------------------------------" -ForegroundColor Cyan
+Write-Host "1. Install fnm"
+Write-Host "2. Install puro"
+Write-Host "-----------------------------------" -ForegroundColor Cyan
+
+$rawOptions = Read-Host "Select one or more options separated by commas [1,2]"
+$options = $rawOptions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" } | Select-Object -Unique
+
+if ($options.Count -eq 0) {
+    Write-Host "Skipping optional installs..." -ForegroundColor Yellow
+    exit
+}
+
+foreach ($opt in $options) {
+    switch ($opt) {
+        "1" { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" }
+        "2" { InstallPuroFVM }
+        default { Write-Host "Invalid option: $opt" -ForegroundColor Red }
+    }
+}
+## Refresh Path
+RefreshPath
+### End Installing optional apps
