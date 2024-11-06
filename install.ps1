@@ -57,13 +57,20 @@ function ConfigureSSHKey() {
 
 function InstallWithWinget() {
     param(
-        [string]$appId
+        [string]$appId,
+        [string]$alias
     )
 
-    winget list --id $appId -n 1 | Out-Null
+    if (-not ([string]::IsNullOrEmpty($alias))) {
+        Get-Command -Name $alias -ErrorAction SilentlyContinue | Out-Null
+    }
+    else {
+        winget list --id $appId -n 1 | Out-Null
+    }
+
     if (-not $?) {
         Write-Host "$appId is not installed. Installing..." -ForegroundColor Yellow
-        winget install -e --id $app
+        winget install -e --id $appId
     }
     else {
         Write-Host "$appId is already installed" -ForegroundColor Green
@@ -95,21 +102,21 @@ ConfigureSSHKey
 ### Start Installing must-have apps
 Write-Host "Installing must-have apps..." -ForegroundColor Cyan
 $apps = @(
-    "zyedidia.micro",
-    "lsd-rs.lsd",
-    "sharkdp.bat",
-    "Fastfetch-cli.Fastfetch",
-    "junegunn.fzf",
-    "sharkdp.fd",
-    "dandavison.delta",
-    "Microsoft.VisualStudioCode",
-    "Starship.Starship",
-    "Microsoft.PowerToys"
-    "Python.Python.3.12" # for dotbot
+    @{ id = "zyedidia.micro"; alias = "micro" },
+    @{ id = "lsd-rs.lsd"; alias = "lsd" },
+    @{ id = "sharkdp.bat"; alias = "bat" },
+    @{ id = "Fastfetch-cli.Fastfetch"; alias = "fastfetch" },
+    @{ id = "junegunn.fzf"; alias = "fzf" },
+    @{ id = "sharkdp.fd"; alias = "fd" },
+    @{ id = "dandavison.delta"; alias = "delta" },
+    @{ id = "Microsoft.VisualStudioCode"; alias = "code" },
+    @{ id = "Starship.Starship"; alias = "starship" },
+    @{ id = "Microsoft.PowerToys"; alias = "" },
+    @{ id = "Python.Python.3.12" ; alias = "" } # for dotbot
 )
 
 foreach ($app in $apps) {
-    InstallWithWinget -appId $app
+    InstallWithWinget -appId $app.id -alias $app.alias
 }
 # Install must-have modules
 if (-not (Get-Module -ListAvailable -Name PSFzf)) {
@@ -139,7 +146,7 @@ $options = $rawOptions -split ',' | ForEach-Object { $_.Trim() } | Where-Object 
 
 foreach ($opt in $options) {
     switch ($opt) {
-        "1" { InstallWithWinget -appId "fnm" }
+        "1" { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" }
         "2" { InstallPuroFVM }
         default { Write-Host "Invalid option: $opt" -ForegroundColor Red }
     }
@@ -176,5 +183,5 @@ if (![string]::IsNullOrEmpty($PYTHON) -and ![string]::IsNullOrEmpty((&$PYTHON --
     &$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG $Args
     return
 }
-Write-Error "Error: Cannot find Python."
+Write-Host "Error: Cannot find Python. Abort configure Dotbot" -ForegroundColor Red
 ### End DotBot

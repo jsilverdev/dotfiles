@@ -5,6 +5,10 @@
 
 - clean: ['~']
 
+- clean:
+    ~/.config:
+      recursive: true
+
 - link:
     # starship
     ~/.config/starship/:
@@ -13,10 +17,12 @@
       force: true
       create: true
     # profile
-    ~/env.ps1:
-      path: config/pwsh/env.ps1
+    ~/.config/pwsh/:
+      glob: true
+      path: config/pwsh/**
       force: true
       create: true
+      exclude: [ "config/pwsh/profile.ps1"]
     ${PROFILE_LOCATION}:
       path: config/pwsh/profile.ps1
       force: true
