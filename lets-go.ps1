@@ -1,3 +1,7 @@
+function RefreshPath() {
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+}
+
 function InstallWithWinget() {
     param(
         [string]$appId
@@ -17,6 +21,7 @@ function InstallWithWinget() {
 if ($null -eq (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
     Write-Output "Enable winget..."
     Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
+    RefreshPath
 }
 
 # List apps to install
@@ -35,7 +40,7 @@ if (!$DOTFILES_DIR) { $DOTFILES_DIR = "$HOME\.dotfiles" }
 if (!$DOTFILES_REPO) { $DOTFILES_REPO = "https://github.com/jsilverdev/dotfiles.git" }
 
 # Reload PATH
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+RefreshPath
 
 if (-not (Test-Path -Path $DOTFILES_DIR -PathType Container)) {
     New-Item -ItemType Directory -Path "$DOTFILES_DIR" -Force

@@ -27,13 +27,10 @@ function EnsureDevModeIsEnabled() {
 }
 
 function CheckWinget() {
-    try {
-        winget --version > $null
-        Write-Host "winget is installed or enabled" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "winget is not installed, please install it" -ForegroundColor Red
-        exit
+    if ($null -eq (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
+        Write-Output "Enable winget..."
+        Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
+        RefreshPath
     }
 }
 
