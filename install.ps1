@@ -91,14 +91,9 @@ function InstallPuroFVM {
 }
 
 function FindPython3 {
-    $python3Paths = Get-Command -Name python* -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Path | Where-Object { $_ -match "python3" }
-    foreach ($path in $python3Paths) {
-        $pythonVersion = & $path --version 2>&1
-        if ($? -and $pythonVersion) {
-            return $path
-        }
-    }
-    return ""
+    return Get-Command -Name python* -ErrorAction SilentlyContinue |
+                   Where-Object { & $_.Source --version 2>&1 | Select-String -Pattern "^Python 3\.\d+\.\d+" } |
+                   Select-Object -First 1 -ExpandProperty Source
 }
 function InstallPython3 {
     $wingetPython3 = winget search "python.python.3" | Select-String "Python.Python" | ForEach-Object {
