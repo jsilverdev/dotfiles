@@ -12,8 +12,7 @@ function CheckIsPowershellCompatible() {
 
 function EnsureDevModeIsEnabled() {
     try {
-        $license = Get-WindowsDeveloperLicense
-        if ($license.IsValid -eq $true) {
+        if ((Get-WindowsDeveloperLicense).IsValid) {
             Write-Host "Developer Mode is Enabled" -ForegroundColor Green
         }
         else {
