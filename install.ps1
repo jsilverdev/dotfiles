@@ -180,7 +180,11 @@ $env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
 
 $optionalApps = @(
     @{ id = "1"; name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" } },
-    @{ id = "2"; name = "puro"; install = { InstallPuroFVM } }
+    @{ id = "2"; name = "puro"; install = { InstallPuroFVM } },
+    @{ id = "3"; name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" } },
+    @{ id = "4"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" } },
+    @{ id = "5"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" } },
+    @{ id = "6"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" } }
 )
 
 Write-Host "             Optionals"
@@ -190,7 +194,7 @@ Write-Host "-----------------------------------" -ForegroundColor Cyan
 $optionalApps | ForEach-Object { $_.id + ". Install " + $_.name }
 Write-Host "-----------------------------------" -ForegroundColor Cyan
 
-$rawOptions = Read-Host "Select one or more options separated by commas [1,2]"
+$rawOptions = Read-Host ("Select one or more options separated by commas [1,2,3...]" )
 $options = $rawOptions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" } | Select-Object -Unique
 
 if ($options.Count -eq 0) {
