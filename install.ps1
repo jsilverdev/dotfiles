@@ -87,7 +87,7 @@ function InstallPuroFVM {
 }
 
 function FindPython3 {
-    return Get-Command -Name python* -ErrorAction SilentlyContinue |
+    return Get-Command -Name python -ErrorAction SilentlyContinue |
                    Where-Object { & $_.Source --version 2>&1 | Select-String -Pattern "^Python 3\.\d+\.\d+" } |
                    Select-Object -First 1 -ExpandProperty Source
 }

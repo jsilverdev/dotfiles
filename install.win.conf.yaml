@@ -18,12 +18,14 @@
       create: true
     # profile
     ~/.config/pwsh/:
+      if: python -c "import sys; sys.exit(0) if __import__('platform').system() == 'Windows' else sys.exit(1)"
       glob: true
       path: config/pwsh/**
       force: true
       create: true
       exclude: [ "config/pwsh/profile.ps1"]
     ${PROFILE_LOCATION}:
+      if: python -c "import sys; sys.exit(0) if __import__('platform').system() == 'Windows' else sys.exit(1)"
       path: config/pwsh/profile.ps1
       force: true
       create: true
