@@ -117,21 +117,21 @@ ConfigureSSHKey
 
 ### Start Installing must-have apps
 Write-Host "Installing must-have apps..." -ForegroundColor Cyan
-$apps = @(
-    @{ id = "zyedidia.micro"; alias = "micro" },
-    @{ id = "lsd-rs.lsd"; alias = "lsd" },
-    @{ id = "sharkdp.bat"; alias = "bat" },
-    @{ id = "Fastfetch-cli.Fastfetch"; alias = "fastfetch" },
-    @{ id = "junegunn.fzf"; alias = "fzf" },
-    @{ id = "sharkdp.fd"; alias = "fd" },
-    @{ id = "dandavison.delta"; alias = "delta" },
-    @{ id = "Microsoft.VisualStudioCode"; alias = "code" },
-    @{ id = "Starship.Starship"; alias = "starship" },
-    @{ id = "Microsoft.PowerToys"; alias = "" }
+$installs = @(
+    $(InstallWithWinget -appId "zyedidia.micro" -alias "micro"),
+    $(InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd"),
+    $(InstallWithWinget -appId "sharkdp.bat" -alias "bat"),
+    $(InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch"),
+    $(InstallWithWinget -appId "junegunn.fzf" -alias "fzf"),
+    $(InstallWithWinget -appId "sharkdp.fd" -alias "fd"),
+    $(InstallWithWinget -appId "dandavison.delta" -alias "delta"),
+    $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code"),
+    $(InstallWithWinget -appId "Starship.Starship" -alias "starship"),
+    $(InstallWithWinget -appId "Microsoft.PowerToys" -alias "")
 )
 
-foreach ($app in $apps) {
-    InstallWithWinget -appId $app.id -alias $app.alias
+foreach ($install in $installs) {
+    $install
 }
 # Install must-have modules
 if (-not (Get-Module -ListAvailable -Name PSFzf)) {
