@@ -177,12 +177,17 @@ $env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
 ### End DotBot
 
 ### Start Installing optional apps
+
+$optionalApps = @(
+    @{ id = "1"; name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" } },
+    @{ id = "2"; name = "puro"; install = { InstallPuroFVM } }
+)
+
 Write-Host "             Optionals"
 Write-Host "-----------------------------------" -ForegroundColor Cyan
 Write-Host "         Choose to Install"
 Write-Host "-----------------------------------" -ForegroundColor Cyan
-Write-Host "1. Install fnm"
-Write-Host "2. Install puro"
+$optionalApps | ForEach-Object { $_.id + ". Install " + $_.name }
 Write-Host "-----------------------------------" -ForegroundColor Cyan
 
 $rawOptions = Read-Host "Select one or more options separated by commas [1,2]"
@@ -193,11 +198,9 @@ if ($options.Count -eq 0) {
     exit
 }
 
-foreach ($opt in $options) {
-    switch ($opt) {
-        "1" { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" }
-        "2" { InstallPuroFVM }
-        default { Write-Host "Invalid option: $opt" -ForegroundColor Red }
+foreach ($app in $optionalApps) {
+    if ($options -contains $app.id) {
+        & $app.install
     }
 }
 ## Refresh Path
