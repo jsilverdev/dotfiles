@@ -14,3 +14,10 @@ fi
 
 # Append dagger to PATH
 [ -d "$HOME/dagger/bin" ] && export PATH="$HOME/dagger/bin:$PATH"
+
+# Define Chrome executable
+if [ -x "$(command -v google-chrome)" ]; then
+  export CHROME_EXECUTABLE="google-chrome"
+elif [ -x "$(command -v google-chrome-stable)" ]; then
+  export CHROME_EXECUTABLE="google-chrome-stable"
+fi

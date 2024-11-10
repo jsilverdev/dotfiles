@@ -1,13 +1,37 @@
 #!/usr/bin/env bash
+RED='\033[0;31m'          # Red
+GREEN='\033[0;32m'        # Green
+YELLOW='\033[0;33m'       # Yellow
+BLUE='\033[0;34m'         # Blue
+CYAN='\033[0;36m'         # Cyan
+WHITE='\033[0;37m'        # White
+NC='\033[0m' # No Color
+
 
 SRC_DIR=$(dirname "${0}")
 DOTFILES_DIR="${DOTFILES_DIR:-${SRC_DIR:-$HOME/.dotfiles}}"
 
 function pre_setup_tasks() {
     if [ ! -d "$DOTFILES_DIR" ]; then
-        echo "The folder '$DOTFILES_DIR' not exists exiting...";
+        echo -e "${RED}The folder '$DOTFILES_DIR' not exists exiting...";
         exit 1;
     fi
+}
+
+function configure_ssh_key() {
+    key_path= "~/.ssh/jsilverdev_key"
+
+    if [ ! -d "$key_path" ] {
+        echo -e "${RED}SSH key not found at '$key_path'. Aborting..."
+        exit 1
+    }
+    ssh-add $key_path
+}
+
+function install_must_have_packages() {
+    $installs = (
+        "lsd"
+    )
 }
 
 function setup_dot_files () {
@@ -21,14 +45,13 @@ function setup_dot_files () {
         "${DOTFILES_DIR}/${DOTBOT_DIR}/bin/dotbot" -d "$DOTFILES_DIR" -c "$DOTBOT_CONF_FILE"
 }
 
-
-function install_packages() {
-    ## Install Puro
-    curl -o- https://puro.dev/install.sh | bash
+function install_optional_packages () {
 
 }
 
 
 pre_setup_tasks
+configure_ssh_key
+install_must_have_packages
 setup_dot_files
-install_packages
+install_optional_packages

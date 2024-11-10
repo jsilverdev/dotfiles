@@ -26,11 +26,13 @@
       path: config/zsh/**
       glob: true
       force: true
+      create: true
       exclude: [ "config/zsh/.zshenv" ]
     ~/.zshenv:
       if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
       path: config/zsh/.zshenv
       force: true
+      create: true
     # pwsh
     ~/.config/pwsh/:
       if: python -c "import sys; sys.exit(0) if __import__('platform').system() == 'Windows' else sys.exit(1)"

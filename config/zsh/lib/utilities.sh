@@ -1,22 +1,27 @@
 # Modify LS_COLORS with vivid (https://github.com/sharkdp/vivid)
 [ -x "$(command -v vivid)" ] && export LS_COLORS="$(vivid generate snazzy)"
 
-# Add fzf autocompletions
-if [ -f "/etc/arch-release" ]; then
-  [ -f /usr/share/fzf/key-bindings.zsh ] && source /usr/share/fzf/key-bindings.zsh
-  [ -f /usr/share/fzf/completion.zsh ] && source /usr/share/fzf/completion.zsh
-elif [ -f "/etc/debian_version" ]; then
-  # git clone https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install
-  [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+### Start zhistory
+zhistory_file="${zsh_dir}/.zhistory"
+[[ ! -f "$zhistory_file" ]] && touch "$zhistory_file"
+export HISTSIZE=2000
+export HISTFILE="$zhistory_file"
+export SAVEHIST=$HISTSIZE
+setopt HIST_FIND_NO_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+### End zhistory
+
+### Start fzf
+if [ -x "$(command -v fzf)" ]; then
+  # DEBIAN: git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install
+  source <(fzf --zsh)
 fi
 
 # fd command
 FD_COMMAND='fd'
-if [ -f "/etc/debian_version" ]; then
-  FD_COMMAND='fdfind'
-fi
+[ -f "/etc/debian_version" ] && FD_COMMAND='fdfind'
 
-# Add fd customizatons for fzf
+# Add fd customizations for fzf
 if [ -x "$(command -v $FD_COMMAND)" ]; then
  export FZF_DEFAULT_COMMAND="$FD_COMMAND --ignore-file ~/.fdignore --type f --follow --exclude .git"
  export FZF_DEFAULT_OPS='--extended --border --info=inline --height 80%'
@@ -25,11 +30,7 @@ if [ -x "$(command -v $FD_COMMAND)" ]; then
  export FZF_ALT_C_COMMAND="$FD_COMMAND --ignore-file ~/.fdignore --type d"
  export FZF_ALT_C_OPTS="--bind='alt-v:reload($FD_COMMAND --type d --hidden --no-ignore --exclude .git),alt-c:reload($FZF_ALT_C_COMMAND)' $FZF_DEFAULT_OPS --preview 'tree -C {} | head -200'"
 fi
+### End fzf
 
-
-# Define Chrome executable
-if [ -x "$(command -v google-chrome)" ]; then
-  export CHROME_EXECUTABLE="google-chrome"
-elif [ -x "$(command -v google-chrome-stable)" ]; then
-  export CHROME_EXECUTABLE="google-chrome-stable"
-fi
+### Starship
+eval "$(starship init zsh)"
