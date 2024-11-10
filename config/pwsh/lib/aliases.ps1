@@ -1,5 +1,6 @@
-## Start Utils
+## Start General
 Set-Alias grep findstr
+function exploreit { explorer.exe . }
 function pwshedit { code $profile.CurrentUserAllHosts }
 function c. { Set-Location .. }
 function c.. { Set-Location ../../ }
@@ -12,7 +13,10 @@ function which ($command) {
     Get-Command -Name $command -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty Path -ErrorAction SilentlyContinue
 }
-## End Utils
+function ll() { lsd -lAFh }
+function lb() { lsd -lhSA }
+function lm() { lsd -tA -1 }
+## End General
 
 # GIT
 Import-Module git-aliases -DisableNameChecking
