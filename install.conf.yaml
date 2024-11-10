@@ -3,11 +3,10 @@
       create: true
       relink: true
 
-- clean: ['~', '${XDG_CONFIG_HOME}']
+- clean: ['~']
 
 - clean:
-    ~/.config/zsh:
-      force: true
+    ~/.config:
       recursive: true
 
 - shell:
@@ -15,29 +14,43 @@
     command: source ./config/zsh/.zshenv
 
 - link:
+    # starship
+    ~/.config/starship/:
+      glob: true
+      path: config/starship/*
+      force: true
+      create: true
     # zsh
+    ~/.config/zsh/:
+      if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
+      path: config/zsh/**
+      glob: true
+      force: true
+      exclude: [ "config/zsh/.zshenv" ]
     ~/.zshenv:
+      if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
       path: config/zsh/.zshenv
       force: true
-    ~/.config/zsh:
-      path: config/zsh/*
+    # pwsh
+    ~/.config/pwsh/:
+      if: python -c "import sys; sys.exit(0) if __import__('platform').system() == 'Windows' else sys.exit(1)"
       glob: true
+      path: config/pwsh/**
       force: true
-    ~/.config/zsh/:
-      path: config/zsh/.*
+      create: true
+      exclude: [ "config/pwsh/profile.ps1"]
+    ${PROFILE_LOCATION}:
+      if: python -c "import sys; sys.exit(0) if __import__('platform').system() == 'Windows' else sys.exit(1)"
+      path: config/pwsh/profile.ps1
+      force: true
+      create: true
+    # Git
+    ~/:
       glob: true
-      force: true
-      exclude:
-        - config/zsh/.ssh.p10k.zsh
-    ~/.config/zsh/.p10k.zsh:
-      if: '[ [ `echo $SSH_CLIENT != '' ] || [ `echo $SSH_TTY` != '' ] ]'
-      path: config/zsh/.ssh.p10k.zsh
+      path: config/general/.*
       relink: true
+      exclude: [ "config/general/.gitignore_global" ]
+    ~/.fdignore:
+      path: config/general/.gitignore_global
       force: true
-
-    # General config
-    ~/.bash_profile: config/general/.bash_profile
-    ~/.bashrc: config/general/.bashrc
-    ~/.gitconfig: config/general/.gitconfig
-    ~/.fdignore: config/general/.gitignore_global
-    ~/.vimrc: config/general/.vimrc
+      create: true

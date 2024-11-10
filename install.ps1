@@ -149,7 +149,7 @@ else {
 ### End Installing must-have apps
 
 ### Start DotBot
-$CONFIG = "install.win.conf.yaml"
+$CONFIG = "install.conf.yaml"
 $DOTBOT_DIR = "lib/dotbot"
 
 $DOTBOT_BIN = "bin/dotbot"
