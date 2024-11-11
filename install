@@ -46,6 +46,7 @@ function install_debian_packages () {
         "fastfetch"
         "jq"
         "python3"
+        "tree"
     )
 
     for app in ${debian_apps[@]}; do
@@ -118,6 +119,7 @@ function install_arch_packages () {
         "zsh"
         "micro"
         "fastfetch"
+        "tree"
         "jq"
         "python"
         "lsd"
