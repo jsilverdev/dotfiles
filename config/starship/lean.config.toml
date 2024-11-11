@@ -6,7 +6,7 @@ error_symbol = "[x](bold red)"
 vimcmd_symbol = "[<](bold green)"
 
 [hostname]
-ssh_symbol = 'remote '
+format = '($style)$hostname '
 
 [git_commit]
 tag_symbol = "tags/"
