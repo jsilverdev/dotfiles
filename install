@@ -44,7 +44,6 @@ function install_debian_packages () {
     debian_apps=(
         "zsh"
         "micro"
-        "fastfetch"
         "jq"
         "python3"
         "tree"
@@ -68,6 +67,17 @@ function check_package_or_run () {
     else
         echo -e "${CYAN}[Installing]${LIGHT} Downloading $1...${RESET}"
         $2
+    fi
+}
+
+function install_fastfetch () {
+    if apt-cache show install_fastfetch &>/dev/null; then
+        sudo apt install -y fastfetch
+    else
+        fastfetch_version=$(curl -s https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | grep -Po '"tag_name": "\K[0-9.]+')
+        wget "https://github.com/fastfetch-cli/fastfetch/releases/download/${fastfetch_version}/fastfetch-linux-amd64.deb"
+        sudo dpkg -i fastfetch-linux-amd64.deb
+        rm fastfetch-linux-amd64.deb
     fi
 }
 
@@ -105,6 +115,7 @@ function install_starship () {
 }
 
 function install_custom_debian_packages () {
+    check_package_or_run "fastfetch" "install_fastfetch"
     check_package_or_run "lsd" "install_lsd"
     check_package_or_run "batcat" "sudo apt install bat --assume-yes"
     check_package_or_run "python" "sudo apt install python-is-python3 --assume-yes"
