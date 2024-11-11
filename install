@@ -35,8 +35,9 @@ function configure_ssh_key() {
 function install_debian_packages () {
 
     ppa_fastfetch="zhangsongcui3371/fastfetch"
-    if ! grep -q "^deb .*$ppa_fastfetch" /etc/apt/sources.list /etc/apt/sources.list.d/*; then
-        sudo add-apt-repository ppa:zhangsongcui3371/fastfetch
+    is_fastfetch=$(grep ^ /etc/apt/sources.list /etc/apt/sources.list.d/* | grep $ppa_fastfetch)
+    if [ -z "$is_fastfetch" ]; then
+        sudo add-apt-repository -y ppa:$ppa_fastfetch
         sudo apt update
     fi
 
@@ -82,7 +83,7 @@ function install_lsd () {
 }
 
 function install_fzf () {
-    git clone https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install --key-bindings --completion --no-update-rc
+    git clone https://github.com/junegunn/fzf.git ~/.config/fzf && ~/.config/fzf/install --bin
 }
 
 function install_vivid () {

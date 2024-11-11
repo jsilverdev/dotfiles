@@ -18,7 +18,7 @@ if [ -f "/etc/arch-release" ]; then
   [ -f /usr/share/fzf/key-bindings.zsh ] && source /usr/share/fzf/key-bindings.zsh
   [ -f /usr/share/fzf/completion.zsh ] && source /usr/share/fzf/completion.zsh
 elif [ -f "/etc/debian_version" ]; then
-  [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+  [ -d "$HOME/.config/fzf/bin" ] && export PATH="$PATH:$HOME/.config/fzf/bin" && eval "$(fzf --zsh)"
 fi
 
 # fd command

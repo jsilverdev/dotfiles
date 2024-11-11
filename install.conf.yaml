@@ -17,12 +17,13 @@
       force: true
       create: true
     # zsh
-    ~/.config/zsh/lib:
+    ~/.config/zsh/:
       if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
-      path: config/zsh/lib/*
+      path: config/zsh/**
       glob: true
       force: true
       create: true
+      exclude: [ "config/general/.zshrc" , "config/general/.zshenv" ]
     ~/.config/zsh/.zshrc:
       if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
       path: config/zsh/.zshrc
