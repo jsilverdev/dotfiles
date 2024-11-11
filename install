@@ -106,9 +106,9 @@ function install_starship () {
 
 function install_custom_debian_packages () {
     check_package_or_run "lsd" "install_lsd"
-    check_package_or_run "batcat" "sudo apt install apt bat --assume-yes"
-    check_package_or_run "python" "sudo apt install apt python-is-python3 --assume-yes"
-    check_package_or_run "fdfind" "sudo apt install apt fd-find --assume-yes" # fd
+    check_package_or_run "batcat" "sudo apt install bat --assume-yes"
+    check_package_or_run "python" "sudo apt install python-is-python3 --assume-yes"
+    check_package_or_run "fdfind" "sudo apt install fd-find --assume-yes" # fd
     check_package_or_run "fzf" "install_fzf"
     check_package_or_run "vivid" "install_vivid"
     check_package_or_run "delta" "install_delta"
