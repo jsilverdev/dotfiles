@@ -9,10 +9,6 @@
     ~/.config:
       recursive: true
 
-- shell:
-  - description: Set XDG environmental variables
-    command: source ./config/zsh/.zshenv
-
 - link:
     # starship
     ~/.config/starship/:
@@ -21,13 +17,17 @@
       force: true
       create: true
     # zsh
-    ~/.config/zsh/:
+    ~/.config/zsh/lib:
       if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
-      path: config/zsh/**
+      path: config/zsh/*
       glob: true
       force: true
       create: true
-      exclude: [ "config/zsh/.zshenv" ]
+    ~/.config/zsh/.zshrc:
+      if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
+      path: config/zsh/.zshrc
+      force: true
+      create: true
     ~/.zshenv:
       if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
       path: config/zsh/.zshenv

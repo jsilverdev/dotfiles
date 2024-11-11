@@ -21,3 +21,9 @@ if [ -x "$(command -v google-chrome)" ]; then
 elif [ -x "$(command -v google-chrome-stable)" ]; then
   export CHROME_EXECUTABLE="google-chrome-stable"
 fi
+
+if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ]; then
+  export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/lean.config.toml"
+else
+  export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/config.toml"
+fi

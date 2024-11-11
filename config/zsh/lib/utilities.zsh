@@ -12,9 +12,13 @@ setopt HIST_IGNORE_ALL_DUPS
 ### End zhistory
 
 ### Start fzf
-if [ -x "$(command -v fzf)" ]; then
-  # DEBIAN: git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf && ~/.fzf/install
-  source <(fzf --zsh)
+
+# Add fzf autocompletion
+if [ -f "/etc/arch-release" ]; then
+  [ -f /usr/share/fzf/key-bindings.zsh ] && source /usr/share/fzf/key-bindings.zsh
+  [ -f /usr/share/fzf/completion.zsh ] && source /usr/share/fzf/completion.zsh
+elif [ -f "/etc/debian_version" ]; then
+  [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 fi
 
 # fd command
