@@ -19,7 +19,7 @@
     # zsh
     ~/.config/zsh/lib:
       if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
-      path: config/zsh/*
+      path: config/zsh/lib/*
       glob: true
       force: true
       create: true
