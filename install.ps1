@@ -181,6 +181,8 @@ function InstallOptionalApps {
         @{ id = "4"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" } },
         @{ id = "5"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" } },
         @{ id = "6"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" } }
+        @{ id = "7"; name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -alias "" } }
+        @{ id = "8"; name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -alias "" } }
     )
 
     Write-Host "             Optionals"
