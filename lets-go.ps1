@@ -32,14 +32,15 @@ if ($null -eq (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
 }
 
 # List apps to install
-$core_apps = @(
+Write-Host "Installing must-have apps..." -ForegroundColor Cyan
+$installs = @(
     $(InstallWithWinget -appId "Git.Git" -alias "git"),
     $(InstallWithWinget -appId "Microsoft.PowerShell" -alias "")
 )
 
 # For each app, check if not present and install
-foreach ($app in $core_apps) {
-    InstallWithWinget -appId $app
+foreach ($install in $installs) {
+    $install
 }
 
 # If not already set, specify dotfiles destination directory and source repo
