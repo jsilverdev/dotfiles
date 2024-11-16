@@ -45,7 +45,6 @@ function install_debian_packages () {
         "zsh"
         "micro"
         "jq"
-        "python3"
         "tree"
     )
 
@@ -118,7 +117,6 @@ function install_custom_debian_packages () {
     check_package_or_run "fastfetch" "install_fastfetch"
     check_package_or_run "lsd" "install_lsd"
     check_package_or_run "batcat" "sudo apt install bat --assume-yes"
-    check_package_or_run "python" "sudo apt install python-is-python3 --assume-yes"
     check_package_or_run "fdfind" "sudo apt install fd-find --assume-yes" # fd
     check_package_or_run "fzf" "install_fzf"
     check_package_or_run "vivid" "install_vivid"
@@ -133,7 +131,6 @@ function install_arch_packages () {
         "fastfetch"
         "tree"
         "jq"
-        "python"
         "lsd"
         "fd"
         "vivid"
@@ -188,7 +185,7 @@ function setup_default_shell() {
         chsh -s "$(which zsh)"
         echo -e "${GREEN}Default shell changed to zsh.${RESET}"
     else
-        echo -e "${CYAN}zsh is already the default shell for $USER. No changes made.${RESET}"
+        echo -e "${YELLOW}zsh is already the default shell for $USER. No changes made.${RESET}"
     fi
 }
 
@@ -208,8 +205,8 @@ function install_optional_packages () {
 
 
 pre_setup_tasks
-configure_ssh_key
 setup_dot_files
+configure_ssh_key
 setup_default_shell
 install_must_have_packages
 # install_optional_packages
