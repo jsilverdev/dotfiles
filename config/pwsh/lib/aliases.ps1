@@ -16,6 +16,9 @@ function which ($command) {
 function ll() { lsd -lAFh }
 function lb() { lsd -lhSA }
 function lm() { lsd -tA -1 }
+function touch($file) {
+    New-Item -Path "$file" -ItemType File
+}
 ## End General
 
 # GIT

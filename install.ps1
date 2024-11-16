@@ -214,7 +214,9 @@ function DownloadFonts {
     $BASEDIR = $PSScriptRoot
     $FONTS = "$BASEDIR\fonts"
 
-    New-Item -ItemType Directory -Force -Path "$FONTS"
+    if (!(Test-Path -Path "$FONTS")) {
+        New-Item -ItemType Directory -Force -Path "$FONTS"
+    }
 
     $CASCADIA_CODE = "$FONTS\CascadiaCode"
 
@@ -256,6 +258,11 @@ function DownloadFonts {
 
 }
 
+function ConfigureGitLocal {
+    # Create .gitconfig.local if not exists
+    if (-not (Test-Path "$HOME\.gitconfig.local")) { New-Item -Path "$HOME\.gitconfig.local" -ItemType File }
+}
+
 ### End Utils
 
 
@@ -264,6 +271,7 @@ CheckIsPowershellCompatible
 EnsureDevModeIsEnabled
 CheckWinget
 DownloadFonts
+ConfigureGitLocal
 SetupDotFiles
 ConfigureSSHKey
 InstallMustHaveApps
