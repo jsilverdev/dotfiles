@@ -172,11 +172,12 @@ function setup_dot_files () {
 
     DOTBOT_DIR="lib/dotbot"
     DOTBOT_CONF_FILE="install.conf.yaml"
+    DOTBOT_CROSSPLATFORM="lib/dotbot-plugins/dotbot-crossplatform/crossplatform.py"
 
     cd "$DOTFILES_DIR" && \
-        git -C "$DOTBOT_DIR" submodule sync --quiet --recursive && \
-        git submodule update --init --recursive "$DOTBOT_DIR" && \
-        "${DOTFILES_DIR}/${DOTBOT_DIR}/bin/dotbot" -d "$DOTFILES_DIR" -c "$DOTBOT_CONF_FILE"
+        git submodule sync --quiet --recursive && \
+        git submodule update --init --recursive && \
+        "${DOTFILES_DIR}/${DOTBOT_DIR}/bin/dotbot" -d "$DOTFILES_DIR" -c "$DOTBOT_CONF_FILE" -p $DOTBOT_CROSSPLATFORM "${@}"
 }
 
 function setup_default_shell() {

@@ -2,3 +2,11 @@
 	path = lib/dotbot
 	url = https://github.com/anishathalye/dotbot
 	ignore = dirty
+[submodule "dotbot-crossplatform"]
+	path = lib/dotbot-plugins/dotbot-crossplatform
+	url = https://github.com/msdrigg/dotbot-crossplatform.git
+	ignore = dirty
+[submodule "dotbot-windows"]
+	path = lib/dotbot-plugins/dotbot-windows
+	url = https://github.com/kurtmckee/dotbot-windows.git
+	ignore = dirty

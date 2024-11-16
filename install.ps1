@@ -146,9 +146,12 @@ function SetupDotFiles {
     $DOTBOT_BIN = "bin/dotbot"
     $BASEDIR = $PSScriptRoot
 
+    $DOTBOT_CROSSPLATFORM = "lib/dotbot-plugins/dotbot-crossplatform/crossplatform.py"
+    $DOTBOT_WINDOWS = "lib/dotbot-plugins/dotbot-windows/dotbot_windows.py"
+
     Set-Location $BASEDIR
-    git -C $DOTBOT_DIR submodule sync --quiet --recursive
-    git submodule update --init --recursive $DOTBOT_DIR
+    git submodule sync --quiet --recursive
+    git submodule update --init --recursive
 
     $PYTHON = FindPython3
     if ([string]::IsNullOrEmpty($PYTHON)) {
@@ -163,7 +166,7 @@ function SetupDotFiles {
     }
     Write-Host "Running Dotbot..." -ForegroundColor Cyan
     $env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
-    &$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG $Args
+    &$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG -p $DOTBOT_CROSSPLATFORM -p $DOTBOT_WINDOWS $Args
 
     ### End DotBot
 }
@@ -205,6 +208,52 @@ function InstallOptionalApps {
     ### End Installing optional apps
 }
 
+function DownloadFonts {
+    $BASEDIR = $PSScriptRoot
+    $FONTS = "$BASEDIR\fonts"
+
+    New-Item -ItemType Directory -Force -Path "$FONTS"
+
+    $CASCADIA_CODE = "$FONTS\CascadiaCode"
+
+    if (!(Test-Path -Path "${CASCADIA_CODE}.ttf")) {
+        $apiUrl = "https://api.github.com/repos/microsoft/cascadia-code/releases/latest"
+        $latestGitInfo = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell" }
+        $browser_download_url = $latestGitInfo.assets[0].browser_download_url
+        Invoke-WebRequest -Uri $browser_download_url -OutFile "${CASCADIA_CODE}.zip"
+        Expand-Archive "${CASCADIA_CODE}.zip" -DestinationPath $CASCADIA_CODE
+        Remove-Item -r -force "${CASCADIA_CODE}\ttf\static"
+        Get-ChildItem -Path "${CASCADIA_CODE}\*.ttf" -Recurse | Move-Item -Destination $FONTS
+        Remove-Item -r -force "${CASCADIA_CODE}.zip"
+        Remove-Item -r -force "${CASCADIA_CODE}"
+    }
+
+    $apiUrl = "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest"
+
+    $nFonts = @(
+        @{ folder = "$FONTS\CaskaydiaCoveNerdFont"; filename = "CascadiaCode" },
+        @{ folder = "$FONTS\CaskaydiaMonoNerdFont"; filename = "CascadiaMono" }
+    )
+
+    foreach ($nf in $nFonts) {
+        $NF_FONT = $nf.folder
+        $NF_FILENAME = $nf.filename
+
+        if (!(Test-Path -Path "${NF_FONT}-Regular.ttf")) {
+            $latestGitInfo = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell" }
+            $NF_VERSION = $latestGitInfo.tag_name
+            $browser_download_url = "https://github.com/ryanoasis/nerd-fonts/releases/download/${NF_VERSION}/${NF_FILENAME}.zip"
+            Invoke-WebRequest -Uri $browser_download_url -OutFile "${NF_FONT}.zip"
+            Expand-Archive "${NF_FONT}.zip" -DestinationPath $NF_FONT
+            Get-ChildItem -Path "${NF_FONT}\*.ttf" -Recurse | Move-Item -Destination $FONTS
+            Remove-Item -r -force "${NF_FONT}.zip"
+            Remove-Item -r -force "${NF_FONT}"
+        }
+    }
+
+
+}
+
 ### End Utils
 
 
@@ -212,6 +261,7 @@ RefreshPath
 CheckIsPowershellCompatible
 EnsureDevModeIsEnabled
 CheckWinget
+DownloadFonts
 SetupDotFiles
 ConfigureSSHKey
 InstallMustHaveApps

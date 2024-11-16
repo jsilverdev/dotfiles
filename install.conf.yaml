@@ -13,51 +13,60 @@
     ~/.config:
       recursive: true
 
-- link:
+- crossplatform-link:
     # starship
     ~/.config/starship/:
       glob: true
       path: config/starship/*
       force: true
+      fallback_to_copy: true
       create: true
     # zsh
     ~/.config/zsh/:
-      if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
+      platform: "!win32"
       path: config/zsh/**
       glob: true
       force: true
       create: true
       exclude: [ "config/general/.zshrc" , "config/general/.zshenv" ]
     ~/.config/zsh/.zshrc:
-      if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
+      platform: "!win32"
       path: config/zsh/.zshrc
       force: true
       create: true
     ~/.zshenv:
-      if: python -c "import sys; sys.exit(0) if __import__('platform').system() in ['Linux', 'Darwin'] else sys.exit(1)"
+      platform: "!win32"
       path: config/zsh/.zshenv
       force: true
       create: true
     # pwsh
     ~/.config/pwsh/:
-      if: python -c "import sys; sys.exit(0) if __import__('platform').system() == 'Windows' else sys.exit(1)"
+      platform: win32
+      fallback_to_copy: true
       glob: true
       path: config/pwsh/**
       force: true
       create: true
       exclude: [ "config/pwsh/profile.ps1"]
     ${PROFILE_LOCATION}:
-      if: python -c "import sys; sys.exit(0) if __import__('platform').system() == 'Windows' else sys.exit(1)"
+      platform: win32
+      fallback_to_copy: true
       path: config/pwsh/profile.ps1
       force: true
       create: true
     # Git
     ~/:
       glob: true
+      fallback_to_copy: true
       path: config/general/.*
       relink: true
       exclude: [ "config/general/.gitignore_global" ]
     ~/.fdignore:
       path: config/general/.gitignore_global
+      fallback_to_copy: true
       force: true
       create: true
+
+- windows:
+    fonts:
+      path: "fonts/"
