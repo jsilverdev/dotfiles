@@ -1,8 +1,3 @@
-# Run ssh-agent if not running
-$sshAgent = Get-Service -Name "ssh-agent" -ErrorAction SilentlyContinue
-if (-not ($sshAgent -and $sshAgent.Status -eq 'Running')) {
-    Start-Service -Name "ssh-agent"
-}
 # Environment
 Import-Module "~\.config\pwsh\env.ps1"
 # Helpers

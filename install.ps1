@@ -16,7 +16,7 @@ function EnsureDevModeIsEnabled() {
             Write-Host "Developer Mode is Enabled" -ForegroundColor Green
         }
         else {
-            Write-Host "Please enable the Developer Mode before continue" -ForegroundColor Red
+            Write-Host "Please enable the Developer Mode and RESTART!!! before continue" -ForegroundColor Red
             exit
         }
     }
@@ -42,6 +42,7 @@ function ConfigureSSHKey() {
     $keyPath = "$HOME\.ssh\jsilverdev_key"
 
     if (!(Test-Path -Path $keyPath)) {
+        New-Item -Path (Split-Path -Parent $keyPath) -ItemType Directory
         Write-Host "SSH key not found at $keyPath. Generate..." -ForegroundColor Yellow
         ssh-keygen -t ed25519 -C "jsilverdev" -f "$keyPath" -N ""
     }
@@ -168,7 +169,7 @@ if ([string]::IsNullOrEmpty($PYTHON)) {
 }
 Write-Host "Running Dotbot..." -ForegroundColor Cyan
 $env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
-&$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG $Args
+&$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -vv -d $BASEDIR -c $CONFIG $Args
 
 ### End DotBot
 
