@@ -42,7 +42,6 @@ function ConfigureSSHKey() {
     $keyPath = "$HOME\.ssh\jsilverdev_key"
 
     if (!(Test-Path -Path $keyPath)) {
-        New-Item -Path (Split-Path -Parent $keyPath) -ItemType Directory
         Write-Host "SSH key not found at $keyPath. Generate..." -ForegroundColor Yellow
         ssh-keygen -t ed25519 -C "jsilverdev" -f "$keyPath" -N ""
     }
@@ -85,8 +84,8 @@ function InstallPuroFVM {
 
 function FindPython3 {
     return Get-Command -Name python -ErrorAction SilentlyContinue |
-                   Where-Object { & $_.Source --version 2>&1 | Select-String -Pattern "^Python 3\.\d+\.\d+" } |
-                   Select-Object -First 1 -ExpandProperty Source
+    Where-Object { & $_.Source --version 2>&1 | Select-String -Pattern "^Python 3\.\d+\.\d+" } |
+    Select-Object -First 1 -ExpandProperty Source
 }
 function InstallPython3 {
     $wingetPython3 = winget search "python.python.3" | Select-String "Python.Python" | ForEach-Object {
@@ -102,108 +101,118 @@ function InstallPython3 {
     winget install -e --id $wingetPython3.Id
     RefreshPath
 }
+
+function InstallMustHaveApps {
+    ### Start Installing must-have apps
+    Write-Host "Installing must-have apps..." -ForegroundColor Cyan
+    $installs = @(
+        $(InstallWithWinget -appId "zyedidia.micro" -alias "micro"),
+        $(InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd"),
+        $(InstallWithWinget -appId "sharkdp.bat" -alias "bat"),
+        $(InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch"),
+        $(InstallWithWinget -appId "junegunn.fzf" -alias "fzf"),
+        $(InstallWithWinget -appId "sharkdp.fd" -alias "fd"),
+        $(InstallWithWinget -appId "dandavison.delta" -alias "delta"),
+        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code"),
+        $(InstallWithWinget -appId "Starship.Starship" -alias "starship"),
+        $(InstallWithWinget -appId "Microsoft.PowerToys" -alias "")
+    )
+
+    foreach ($install in $installs) {
+        $install
+    }
+    # Install must-have modules
+    if (-not (Get-Module -ListAvailable -Name PSFzf)) {
+        Install-Module -Name PSFzf -Scope CurrentUser -Force
+    }
+    else {
+        Write-Host "PSFzf module is already installed" -ForegroundColor Green
+    }
+    if (-not (Get-Module -ListAvailable -Name git-aliases)) {
+        Install-Module -Name git-aliases -Scope CurrentUser -AllowClobber
+    }
+    else {
+        Write-Host "git-aliases module is already installed" -ForegroundColor Green
+    }
+    ### End Installing must-have apps
+}
+
+function SetupDotFiles {
+
+    ### Start DotBot
+    $CONFIG = "install.conf.yaml"
+    $DOTBOT_DIR = "lib/dotbot"
+
+    $DOTBOT_BIN = "bin/dotbot"
+    $BASEDIR = $PSScriptRoot
+
+    Set-Location $BASEDIR
+    git -C $DOTBOT_DIR submodule sync --quiet --recursive
+    git submodule update --init --recursive $DOTBOT_DIR
+
+    $PYTHON = FindPython3
+    if ([string]::IsNullOrEmpty($PYTHON)) {
+        Write-Host "Cannot find Python 3. Installing..." -ForegroundColor Yellow
+        InstallPython3
+        $PYTHON = FindPython3
+
+        if ([string]::IsNullOrEmpty($PYTHON)) {
+            Write-Host "Error: Python can't not be found. Aborting..." -ForegroundColor Red
+            exit
+        }
+    }
+    Write-Host "Running Dotbot..." -ForegroundColor Cyan
+    $env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
+    &$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG $Args
+
+    ### End DotBot
+}
+
+function InstallOptionalApps {
+    ### Start Installing optional apps
+
+    $optionalApps = @(
+        @{ id = "1"; name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" } },
+        @{ id = "2"; name = "puro"; install = { InstallPuroFVM } },
+        @{ id = "3"; name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" } },
+        @{ id = "4"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" } },
+        @{ id = "5"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" } },
+        @{ id = "6"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" } }
+    )
+
+    Write-Host "             Optionals"
+    Write-Host "-----------------------------------" -ForegroundColor Cyan
+    Write-Host "         Choose to Install"
+    Write-Host "-----------------------------------" -ForegroundColor Cyan
+    $optionalApps | ForEach-Object { $_.id + ". Install " + $_.name }
+    Write-Host "-----------------------------------" -ForegroundColor Cyan
+
+    $rawOptions = Read-Host ("Select one or more options separated by commas [1,2,3...]" )
+    $options = $rawOptions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" } | Select-Object -Unique
+
+    if ($options.Count -eq 0) {
+        Write-Host "Skipping optional installs..." -ForegroundColor Yellow
+    }
+    else {
+        foreach ($app in $optionalApps) {
+            if ($options -contains $app.id) {
+                & $app.install
+            }
+        }
+        ## Refresh Path
+        RefreshPath
+    }
+    ### End Installing optional apps
+}
+
 ### End Utils
 
-### Start Pre-requirements
+
 RefreshPath
 CheckIsPowershellCompatible
 EnsureDevModeIsEnabled
 CheckWinget
+SetupDotFiles
 ConfigureSSHKey
-### End Pre-requirements
-
-### Start Installing must-have apps
-Write-Host "Installing must-have apps..." -ForegroundColor Cyan
-$installs = @(
-    $(InstallWithWinget -appId "zyedidia.micro" -alias "micro"),
-    $(InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd"),
-    $(InstallWithWinget -appId "sharkdp.bat" -alias "bat"),
-    $(InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch"),
-    $(InstallWithWinget -appId "junegunn.fzf" -alias "fzf"),
-    $(InstallWithWinget -appId "sharkdp.fd" -alias "fd"),
-    $(InstallWithWinget -appId "dandavison.delta" -alias "delta"),
-    $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code"),
-    $(InstallWithWinget -appId "Starship.Starship" -alias "starship"),
-    $(InstallWithWinget -appId "Microsoft.PowerToys" -alias "")
-)
-
-foreach ($install in $installs) {
-    $install
-}
-# Install must-have modules
-if (-not (Get-Module -ListAvailable -Name PSFzf)) {
-    Install-Module -Name PSFzf -Scope CurrentUser -Force
-}
-else {
-    Write-Host "PSFzf module is already installed" -ForegroundColor Green
-}
-if (-not (Get-Module -ListAvailable -Name git-aliases)) {
-    Install-Module -Name git-aliases -Scope CurrentUser -AllowClobber
-}
-else {
-    Write-Host "git-aliases module is already installed" -ForegroundColor Green
-}
-### End Installing must-have apps
-
-### Start DotBot
-$CONFIG = "install.conf.yaml"
-$DOTBOT_DIR = "lib/dotbot"
-
-$DOTBOT_BIN = "bin/dotbot"
-$BASEDIR = $PSScriptRoot
-
-Set-Location $BASEDIR
-git -C $DOTBOT_DIR submodule sync --quiet --recursive
-git submodule update --init --recursive $DOTBOT_DIR
-
-$PYTHON = FindPython3
-if ([string]::IsNullOrEmpty($PYTHON)) {
-    Write-Host "Cannot find Python 3. Installing..." -ForegroundColor Yellow
-    InstallPython3
-    $PYTHON = FindPython3
-
-    if ([string]::IsNullOrEmpty($PYTHON)) {
-        Write-Host "Error: Python can't not be found. Aborting..." -ForegroundColor Red
-        exit
-    }
-}
-Write-Host "Running Dotbot..." -ForegroundColor Cyan
-$env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
-&$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -vv -d $BASEDIR -c $CONFIG $Args
-
-### End DotBot
-
-### Start Installing optional apps
-
-$optionalApps = @(
-    @{ id = "1"; name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" } },
-    @{ id = "2"; name = "puro"; install = { InstallPuroFVM } },
-    @{ id = "3"; name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" } },
-    @{ id = "4"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" } },
-    @{ id = "5"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" } },
-    @{ id = "6"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" } }
-)
-
-Write-Host "             Optionals"
-Write-Host "-----------------------------------" -ForegroundColor Cyan
-Write-Host "         Choose to Install"
-Write-Host "-----------------------------------" -ForegroundColor Cyan
-$optionalApps | ForEach-Object { $_.id + ". Install " + $_.name }
-Write-Host "-----------------------------------" -ForegroundColor Cyan
-
-$rawOptions = Read-Host ("Select one or more options separated by commas [1,2,3...]" )
-$options = $rawOptions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" } | Select-Object -Unique
-
-if ($options.Count -eq 0) {
-    Write-Host "Skipping optional installs..." -ForegroundColor Yellow
-    exit
-}
-
-foreach ($app in $optionalApps) {
-    if ($options -contains $app.id) {
-        & $app.install
-    }
-}
-## Refresh Path
-RefreshPath
-### End Installing optional apps
+InstallMustHaveApps
+InstallOptionalApps

@@ -208,7 +208,7 @@ function install_optional_packages () {
 
 pre_setup_tasks
 configure_ssh_key
-install_must_have_packages
-setup_default_shell
 setup_dot_files
+setup_default_shell
+install_must_have_packages
 # install_optional_packages
