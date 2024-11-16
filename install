@@ -201,6 +201,10 @@ function setup_default_shell() {
     fi
 }
 
+function configure_git_local () {
+    [ ! -e ~/.gitconfig.local ] && touch ~/.gitconfig.local
+}
+
 function install_optional_packages () {
     local packages=(
         "fnm"
@@ -219,6 +223,7 @@ function install_optional_packages () {
 pre_setup_tasks
 setup_dot_files
 configure_ssh_key
+configure_git_local
 setup_default_shell
 install_must_have_packages
 # install_optional_packages
