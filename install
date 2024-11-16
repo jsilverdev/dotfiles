@@ -133,8 +133,10 @@ function install_arch_packages () {
         "jq"
         "lsd"
         "fd"
+        "fzf"
+        "unzip"
         "vivid"
-        "delta"
+        "git-delta"
         "starship"
     )
 
@@ -152,15 +154,25 @@ function install_arch_packages () {
     done
 }
 
+function install_aur_packages () {
+    # Install yay first
+    sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si
+
+    # Packages:
+    # visual-studio-code-bin
+
+}
+
 function install_must_have_packages() {
     if [ -f "/etc/debian_version" ]; then
-        # sudo apt update
-        install_debian_packages
+        sudo apt update && \
+        install_debian_packages && \
         install_custom_debian_packages
     elif [ -f "/etc/arch-release" ]; then
-        # sudo pacman -Syy --noconfirm
-        # sudo pacman -Syu --noconfirm
-        install_arch_packages
+        sudo pacman -Syy --noconfirm && \
+        sudo pacman -Syu --noconfirm && \
+        install_arch_packages && \
+        install_aur_packages
     fi
 
 }
