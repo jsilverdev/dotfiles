@@ -35,20 +35,16 @@ function CheckWinget() {
 }
 
 function ConfigureSSHKey() {
-    ## Create key
-    # ssh-keygen -t ed25519 -C "jrp8900@gmail.com"
-
     ## This is only with admin:
     # Get-Service -Name ssh-agent | Set-Service -StartupType Auto
-    Start-Service ssh-agent # If not Started
+    # Start-Service ssh-agent # If not Started
 
     $keyPath = "$HOME\.ssh\jsilverdev_key"
 
     if (!(Test-Path -Path $keyPath)) {
-        Write-Host "SSH key not found at $keyPath. Aborting..." -ForegroundColor Red
-        exit
+        Write-Host "SSH key not found at $keyPath. Generate..." -ForegroundColor Yellow
+        ssh-keygen -t ed25519 -C "jsilverdev" -f "$keyPath" -N ""
     }
-    ssh-add $keyPath
 }
 
 function InstallWithWinget() {
