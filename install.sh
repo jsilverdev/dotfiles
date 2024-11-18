@@ -26,7 +26,7 @@ function configure_ssh_key() {
 
     if [ ! -f "$key_path" ]; then
         echo -e "${YELLOW}SSH key not found at '$key_path'. Generate..${RESET}"
-        ssh-keygen -t ed25519 -C "jsilverdev" -f "$keyPath" -N ""
+        ssh-keygen -t ed25519 -C "jsilverdev" -f "$key_path" -N ""
     fi
     eval "$(ssh-agent -s)"
     ssh-add $key_path
