@@ -5,7 +5,11 @@ alias zshrc="vim ${zsh_dir}/.zshrc"
 alias reloadzsh="source ${zsh_dir}/.zshrc"
 
 # Explorer it
-alias exploreit="xdg-open ."
+if grep -qi microsoft /proc/version; then
+  alias exploreit="explorer.exe ."
+else
+  alias exploreit="xdg-open ."
+fi
 
 # Directories
 alias c.='cd ..'
