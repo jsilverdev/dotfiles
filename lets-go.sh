@@ -18,7 +18,7 @@ function multi_system_install () {
   app=$1
   if [ -f "/etc/arch-release" ] && hash pacman 2> /dev/null; then
     install_arch $app # Arch Linux via Pacman
-  elif ! [ -f "/etc/debian_version" ] && hash apt 2> /dev/null; then
+  elif [ -f "/etc/debian_version" ] && hash apt 2> /dev/null; then
     install_debian $app # Debian via apt-get
   else
     echo -e "${YELLOW}Skipping ${app}, as couldn't detect system type ${RESET}"
