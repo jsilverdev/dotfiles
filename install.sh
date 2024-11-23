@@ -34,13 +34,6 @@ function configure_ssh_key() {
 
 function install_debian_packages () {
 
-    ppa_fastfetch="zhangsongcui3371/fastfetch"
-    is_fastfetch=$(grep ^ /etc/apt/sources.list /etc/apt/sources.list.d/* | grep $ppa_fastfetch)
-    if [ -z "$is_fastfetch" ]; then
-        sudo add-apt-repository -y ppa:$ppa_fastfetch
-        sudo apt update
-    fi
-
     debian_apps=(
         "zsh"
         "micro"
