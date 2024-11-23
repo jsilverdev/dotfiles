@@ -1,5 +1,17 @@
 "$schema" = "https://starship.rs/config-schema.json"
 
+palette = 'neo_rapture'
+
+[palettes.neo_rapture]
+color_blue = '#1d99f3'
+color_bright_blue = '#03edf9'
+color_red = '#fe4450'
+color_gray= '#394260'
+color_light_gray = '#e3e5e5'
+color_dark_gray = '#212736'
+color_green = '#72f1b8'
+color_yellow = '#fede5d'
+
 [character]
 success_symbol = "[>](bold green)"
 error_symbol = "[x](bold red)"
@@ -15,12 +27,19 @@ disabled=false
 tag_disabled=false
 
 [git_status]
-ahead = ">${count}"
-behind = "<${count}"
-diverged = ">${ahead_count} <${behind_count}"
-renamed = "r"
-deleted = "x"
-stashed = "@"
+style = "fg:color_bright_blue"
+conflicted = "[!=${count}](fg:color_red)"
+stashed = "[@${count}](fg:color_yellow)"
+deleted = "[-${count}](fg:color_red)"
+renamed = "[r${count}](fg:color_green)"
+modified = "[!${count}](fg:color_yellow)"
+
+staged = "[+${count}](fg:color_green)"
+untracked = "[?${count}](fg:color_yellow)"
+
+ahead = "⇡${count}"
+diverged = "⇡${ahead_count}⇣${behind_count}"
+behind = "⇣${count}"
 
 [aws]
 symbol = "aws "
