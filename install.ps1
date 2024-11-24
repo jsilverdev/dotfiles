@@ -78,7 +78,15 @@ function InstallPuroFVM {
     $apiUrl = "https://api.github.com/repos/pingbird/puro/releases/latest"
     $latestGitInfo = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell" }
     $tagName = $latestGitInfo.tag_name
-    Invoke-WebRequest -Uri "https://puro.dev/builds/$tagName/windows-x64/puro.exe" -OutFile "$env:temp\puro.exe"; &"$env:temp\puro.exe" install-puro --promote
+    Write-Host "version to install: $tagName" -ForegroundColor Cyan
+    $puroBinary = "$env:temp\puro.exe"
+    Invoke-WebRequest -Uri "https://puro.dev/builds/$tagName/windows-x64/puro.exe" -OutFile $puroBinary
+
+    if((Test-Path -Path $puroBinary)) {
+        &"$puroBinary" install-puro --promote
+    } else {
+        Write-Host "puro cannot be downloaded" -ForegroundColor Red
+    }
 
 }
 
