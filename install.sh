@@ -19,6 +19,32 @@ function pre_setup_tasks() {
     fi
 
     source "${DOTFILES_DIR}/config/zsh/.zshenv"
+
+    detect_arch
+}
+
+detect_arch() {
+
+  arch="$(uname -m | tr '[:upper:]' '[:lower:]')"
+
+  case "${arch}" in
+    x86_64) arch="amd64" ;;
+    arm64) arch="aarch64" ;;
+  esac
+
+  # `uname -m` in some cases mis-reports 32-bit OS as 64-bit, so double check
+  if [ "${arch}" = "amd64" ] && [ "$(getconf LONG_BIT)" -eq 32 ]; then
+    arch=i686
+  elif [ "${arch}" = "aarch64" ] && [ "$(getconf LONG_BIT)" -eq 32 ]; then
+    arch=arm
+  fi
+
+  if [ "${arch}" != "amd64" ] && [ "${arch}" != "aarch64" ]; then
+    echo -e "${RED}Only amd64 and aarch64 supported";
+    exit 1
+  fi
+
+  echo -e "${GREEN}Current arch is '${arch}'${RESET}"
 }
 
 function configure_ssh_key() {
@@ -67,9 +93,9 @@ function install_fastfetch () {
         sudo apt install -y fastfetch
     else
         fastfetch_version=$(curl -s https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | grep -Po '"tag_name": "\K[0-9.]+')
-        wget "https://github.com/fastfetch-cli/fastfetch/releases/download/${fastfetch_version}/fastfetch-linux-amd64.deb"
-        sudo dpkg -i fastfetch-linux-amd64.deb
-        rm fastfetch-linux-amd64.deb
+        wget "https://github.com/fastfetch-cli/fastfetch/releases/download/${fastfetch_version}/fastfetch-linux-${arch}.deb"
+        sudo dpkg -i fastfetch-linux-${arch}.deb
+        rm fastfetch-linux-${arch}.deb
     fi
 }
 
@@ -77,10 +103,14 @@ function install_lsd () {
     if apt-cache show lsd &>/dev/null; then
         sudo apt install -y lsd
     else
+        local lsd_arch=$arch
+        case "${lsd_arch}" in
+            aarch64) lsd_arch="arm64" ;;
+        esac
         lsd_version=$(curl -s https://api.github.com/repos/lsd-rs/lsd/releases/latest | grep -Po '"tag_name": "v\K[0-9.]+')
-        wget "https://github.com/lsd-rs/lsd/releases/download/v${lsd_version}/lsd_${lsd_version}_amd64.deb"
-        sudo dpkg -i lsd_${lsd_version}_amd64.deb
-        rm lsd_${lsd_version}_amd64.deb
+        wget "https://github.com/lsd-rs/lsd/releases/download/v${lsd_version}/lsd_${lsd_version}_${lsd_arch}.deb"
+        sudo dpkg -i lsd_${lsd_version}_${lsd_arch}.deb
+        rm lsd_${lsd_version}_${lsd_arch}.deb
     fi
 }
 
@@ -89,17 +119,25 @@ function install_fzf () {
 }
 
 function install_vivid () {
+    local vivid_arch=$arch
+    case "${vivid_arch}" in
+        aarch64) vivid_arch="arm64" ;;
+    esac
     vivid_version=$(curl -s https://api.github.com/repos/sharkdp/vivid/releases/latest | grep -Po '"tag_name": "v\K[0-9.]+')
-    wget "https://github.com/sharkdp/vivid/releases/download/v${vivid_version}/vivid_${vivid_version}_amd64.deb"
-    sudo dpkg -i vivid_${vivid_version}_amd64.deb
-    rm vivid_${vivid_version}_amd64.deb
+    wget "https://github.com/sharkdp/vivid/releases/download/v${vivid_version}/vivid_${vivid_version}_${vivid_arch}.deb"
+    sudo dpkg -i vivid_${vivid_version}_${vivid_arch}.deb
+    rm vivid_${vivid_version}_${vivid_arch}.deb
 }
 
 function install_delta () {
+    local delta_arch=$arch
+    case "${delta_arch}" in
+        aarch64) delta_arch="arm64" ;;
+    esac
     delta_version=$(curl -s https://api.github.com/repos/dandavison/delta/releases/latest | grep -Po '"tag_name": "\K[0-9.]+')
-    wget "https://github.com/dandavison/delta/releases/download/${delta_version}/git-delta_${delta_version}_amd64.deb"
-    sudo dpkg -i git-delta_${delta_version}_amd64.deb
-    rm git-delta_${delta_version}_amd64.deb
+    wget "https://github.com/dandavison/delta/releases/download/${delta_version}/git-delta_${delta_version}_${delta_arch}.deb"
+    sudo dpkg -i git-delta_${delta_version}_${delta_arch}.deb
+    rm git-delta_${delta_version}_${delta_arch}.deb
 }
 
 function install_starship () {
@@ -157,6 +195,8 @@ function install_aur_packages () {
 }
 
 function install_must_have_packages() {
+    echo -e "${CYAN}Installing must have packages...${RESET}"
+
     if [ -f "/etc/debian_version" ]; then
         sudo apt update && \
         install_debian_packages && \
