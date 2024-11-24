@@ -15,3 +15,8 @@ if (Get-Command "$FD_COMMAND" -ErrorAction SilentlyContinue) {
 Import-Module PSFzf
 Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
 ## End Fzf
+
+# fnm
+if (Get-Command -Name fnm -ErrorAction SilentlyContinue) {
+    fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+}

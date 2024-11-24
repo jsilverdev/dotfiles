@@ -6,3 +6,6 @@ else {
     $PS_USER_FOLDER = "$HOME"
 }
 $ENV:STARSHIP_CONFIG = "$HOME\.config\starship\config.toml"
+
+# fnm
+$ENV:FNM_DIR = "$HOME\fnm"
