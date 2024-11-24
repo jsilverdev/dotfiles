@@ -27,3 +27,7 @@ if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ]; then
 else
   export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/config.toml"
 fi
+
+if hash "fnm" 2> /dev/null; then
+  eval "$(fnm env --use-on-cd --shell zsh)"
+fi
