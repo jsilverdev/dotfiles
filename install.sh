@@ -58,26 +58,17 @@ function configure_ssh_key() {
     ssh-add $key_path
 }
 
-function install_debian_packages () {
+function install_with_apt () {
+    local app=$1
 
-    debian_apps=(
-        "zsh"
-        "micro"
-        "jq"
-        "tree"
-        "python3"
-    )
-
-    for app in ${debian_apps[@]}; do
-        if hash "${app}" 2> /dev/null; then
+    if hash "${app}" 2> /dev/null; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
-        elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
-        else
-            echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
-            sudo apt install ${app} --assume-yes
-        fi
-    done
+    elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
+        echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
+    else
+        echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
+        sudo apt install ${app} --assume-yes
+    fi
 }
 
 function check_package_or_run () {
@@ -145,7 +136,20 @@ function install_starship () {
     curl -sS https://starship.rs/install.sh | sh
 }
 
-function install_custom_debian_packages () {
+function install_debian_packages () {
+
+    debian_apps=(
+        "zsh"
+        "micro"
+        "jq"
+        "tree"
+        "python3"
+    )
+
+    for app in ${debian_apps[@]}; do
+        install_with_apt $app
+    done
+
     check_package_or_run "fastfetch" "install_fastfetch"
     check_package_or_run "lsd" "install_lsd"
     check_package_or_run "batcat" "sudo apt install bat --assume-yes"
@@ -154,6 +158,21 @@ function install_custom_debian_packages () {
     check_package_or_run "vivid" "install_vivid"
     check_package_or_run "delta" "install_delta"
     check_package_or_run "starship" "install_starship"
+}
+
+function install_with_pacman () {
+    local app=$1
+
+    if hash "${app}" 2> /dev/null; then
+            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
+        elif [[ $(echo $(pacman -Qk $(echo $app | tr 'A-Z' 'a-z') 2> /dev/null )) == *"total files"* ]]; then
+            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Pacman${RESET}"
+        elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
+            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
+        else
+            echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
+            sudo pacman -S ${app} --needed --noconfirm
+    fi
 }
 
 function install_arch_packages () {
@@ -175,29 +194,15 @@ function install_arch_packages () {
     )
 
     for app in ${pacman_apps[@]}; do
-        if hash "${app}" 2> /dev/null; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
-        elif [[ $(echo $(pacman -Qk $(echo $app | tr 'A-Z' 'a-z') 2> /dev/null )) == *"total files"* ]]; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Pacman${RESET}"
-        elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
-            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
-        else
-            echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
-            sudo pacman -S ${app} --needed --noconfirm
-        fi
+        install_with_pacman $app
     done
-}
 
-function install_aur_packages () {
-    # Install yay first
+    # Install yay
     if hash "yay" 2> /dev/null; then
         echo -e "${YELLOW}[Skipping]${LIGHT} yay is already installed${RESET}"
     else
-        sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git ~/.yay && cd ~/.yay && makepkg -si
+        sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git ~/.yay && (cd ~/.yay && makepkg -si) && rm -rf ~/.yay
     fi
-    # Packages:
-    # visual-studio-code-bin
-
 }
 
 function install_must_have_packages() {
@@ -205,12 +210,10 @@ function install_must_have_packages() {
 
     if [ -f "/etc/debian_version" ]; then
         sudo apt update && \
-        install_debian_packages && \
-        install_custom_debian_packages
+        install_debian_packages
     elif [ -f "/etc/arch-release" ]; then
         sudo pacman -Syy --noconfirm && \
-        install_arch_packages && \
-        install_aur_packages
+        install_arch_packages
     fi
 
 }
