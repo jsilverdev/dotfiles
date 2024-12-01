@@ -280,7 +280,7 @@ EnsureDevModeIsEnabled
 CheckWinget
 DownloadFonts
 ConfigureGitLocal
+InstallMustHaveApps
 SetupDotFiles
 ConfigureSSHKey
-InstallMustHaveApps
 InstallOptionalApps
