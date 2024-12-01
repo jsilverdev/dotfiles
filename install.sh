@@ -65,6 +65,7 @@ function install_debian_packages () {
         "micro"
         "jq"
         "tree"
+        "python3"
     )
 
     for app in ${debian_apps[@]}; do
@@ -169,6 +170,8 @@ function install_arch_packages () {
         "vivid"
         "git-delta"
         "starship"
+        "bat"
+        "python"
     )
 
     for app in ${pacman_apps[@]}; do
@@ -187,8 +190,11 @@ function install_arch_packages () {
 
 function install_aur_packages () {
     # Install yay first
-    sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si
-
+    if hash "yay" 2> /dev/null; then
+        echo -e "${YELLOW}[Skipping]${LIGHT} yay is already installed${RESET}"
+    else
+        sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git ~/.yay && cd ~/.yay && makepkg -si
+    fi
     # Packages:
     # visual-studio-code-bin
 
@@ -203,7 +209,6 @@ function install_must_have_packages() {
         install_custom_debian_packages
     elif [ -f "/etc/arch-release" ]; then
         sudo pacman -Syy --noconfirm && \
-        sudo pacman -Syu --noconfirm && \
         install_arch_packages && \
         install_aur_packages
     fi
@@ -254,9 +259,9 @@ function install_optional_packages () {
 
 
 pre_setup_tasks
+configure_git_local
+install_must_have_packages
 setup_dot_files
 configure_ssh_key
-configure_git_local
 setup_default_shell
-install_must_have_packages
 # install_optional_packages
