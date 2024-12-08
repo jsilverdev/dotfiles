@@ -3,6 +3,7 @@
 core_packages=(
   'git'
   'zsh'
+  'wget'
 )
 
 function install_debian () {

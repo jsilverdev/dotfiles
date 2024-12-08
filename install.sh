@@ -139,6 +139,7 @@ function install_starship () {
 function install_debian_packages () {
 
     debian_apps=(
+        "wget"
         "zsh"
         "micro"
         "jq"
@@ -177,6 +178,7 @@ function install_with_pacman () {
 
 function install_arch_packages () {
     pacman_apps=(
+        "wget"
         "zsh"
         "micro"
         "fastfetch"
