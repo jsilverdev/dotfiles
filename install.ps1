@@ -50,7 +50,8 @@ function ConfigureSSHKey() {
 function InstallWithWinget() {
     param(
         [string]$appId,
-        [string]$alias
+        [string]$alias,
+        [switch]$update
     )
 
     if (-not ([string]::IsNullOrEmpty($alias))) {
@@ -63,6 +64,9 @@ function InstallWithWinget() {
     if (-not $?) {
         Write-Host "$appId is not installed. Installing..." -ForegroundColor Yellow
         winget install -e --accept-source-agreements --accept-package-agreements --id $appId
+    } elseif ($update) {
+        Write-Host "Updating $appId..." -ForegroundColor Yellow
+        winget upgrade --accept-source-agreements --id $appId
     }
     else {
         Write-Host "$appId is already installed" -ForegroundColor Green
@@ -82,9 +86,10 @@ function InstallPuroFVM {
     $puroBinary = "$env:temp\puro.exe"
     Invoke-WebRequest -Uri "https://puro.dev/builds/$tagName/windows-x64/puro.exe" -OutFile $puroBinary
 
-    if((Test-Path -Path $puroBinary)) {
+    if ((Test-Path -Path $puroBinary)) {
         &"$puroBinary" install-puro --promote
-    } else {
+    }
+    else {
         Write-Host "puro cannot be downloaded" -ForegroundColor Red
     }
 
@@ -113,17 +118,25 @@ function InstallPython3 {
 function InstallMustHaveApps {
     ### Start Installing must-have apps
     Write-Host "Installing must-have apps..." -ForegroundColor Cyan
+
+    # Pregunta si deseas actualizar las aplicaciones existentes
+    $updateChoice = Read-Host "Do you want to update existing apps? (Y/N)"
+    $updateFlag = $false
+    if ($updateChoice -match "^[Yy]$") {
+        $updateFlag = $true
+    }
+
     $installs = @(
-        $(InstallWithWinget -appId "zyedidia.micro" -alias "micro"),
-        $(InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd"),
-        $(InstallWithWinget -appId "sharkdp.bat" -alias "bat"),
-        $(InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch"),
-        $(InstallWithWinget -appId "junegunn.fzf" -alias "fzf"),
-        $(InstallWithWinget -appId "sharkdp.fd" -alias "fd"),
-        $(InstallWithWinget -appId "dandavison.delta" -alias "delta"),
-        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code"),
-        $(InstallWithWinget -appId "Starship.Starship" -alias "starship"),
-        $(InstallWithWinget -appId "Microsoft.PowerToys" -alias "")
+        $(InstallWithWinget -appId "zyedidia.micro" -alias "micro" -update:$updateFlag),
+        $(InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd" -update:$updateFlag),
+        $(InstallWithWinget -appId "sharkdp.bat" -alias "bat" -update:$updateFlag),
+        $(InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch" -update:$updateFlag),
+        $(InstallWithWinget -appId "junegunn.fzf" -alias "fzf" -update:$updateFlag),
+        $(InstallWithWinget -appId "sharkdp.fd" -alias "fd" -update:$updateFlag),
+        $(InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag),
+        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag),
+        $(InstallWithWinget -appId "Starship.Starship" -alias "starship" -update:$updateFlag),
+        $(InstallWithWinget -appId "Microsoft.PowerToys" -alias "" -update:$updateFlag)
     )
 
     foreach ($install in $installs) {
