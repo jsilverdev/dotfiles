@@ -146,6 +146,7 @@ function install_debian_packages () {
         "tree"
         "python3"
         "ufw"
+        "rsync"
     )
 
     for app in ${debian_apps[@]}; do
@@ -195,6 +196,7 @@ function install_arch_packages () {
         "bat"
         "python"
         "ufw"
+        "rsync"
     )
 
     for app in ${pacman_apps[@]}; do
