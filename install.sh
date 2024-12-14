@@ -191,7 +191,6 @@ function install_arch_packages () {
         "lsd"
         "fd"
         "fzf"
-        "unzip"
         "vivid"
         "git-delta"
         "starship"
