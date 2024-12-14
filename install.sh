@@ -147,6 +147,8 @@ function install_debian_packages () {
         "python3"
         "ufw"
         "rsync"
+        "zip"
+        "unzip"
     )
 
     for app in ${debian_apps[@]}; do
@@ -197,6 +199,8 @@ function install_arch_packages () {
         "python"
         "ufw"
         "rsync"
+        "zip"
+        "unzip"
     )
 
     for app in ${pacman_apps[@]}; do
