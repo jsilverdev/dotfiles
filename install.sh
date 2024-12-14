@@ -145,6 +145,7 @@ function install_debian_packages () {
         "jq"
         "tree"
         "python3"
+        "ufw"
     )
 
     for app in ${debian_apps[@]}; do
@@ -193,6 +194,7 @@ function install_arch_packages () {
         "starship"
         "bat"
         "python"
+        "ufw"
     )
 
     for app in ${pacman_apps[@]}; do
