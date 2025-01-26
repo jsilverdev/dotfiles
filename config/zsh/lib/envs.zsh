@@ -14,6 +14,8 @@ else
   export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/lean.config.toml"
 fi
 
+FNM_PATH="${HOME}/.local/share/fnm"
+[ -d "$FNM_PATH" ] && export PATH="$FNM_PATH:$PATH"
 if hash "fnm" 2> /dev/null; then
   eval "$(fnm env --use-on-cd --shell zsh)"
 fi
