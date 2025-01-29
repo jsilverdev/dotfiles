@@ -99,10 +99,11 @@ function install_lsd () {
         case "${lsd_arch}" in
             aarch64) lsd_arch="arm64" ;;
         esac
+        lsd_extra="_xz"
         lsd_version=$(curl -s https://api.github.com/repos/lsd-rs/lsd/releases/latest | grep -Po '"tag_name": "v\K[0-9.]+')
-        wget "https://github.com/lsd-rs/lsd/releases/download/v${lsd_version}/lsd_${lsd_version}_${lsd_arch}.deb"
-        sudo dpkg -i lsd_${lsd_version}_${lsd_arch}.deb
-        rm lsd_${lsd_version}_${lsd_arch}.deb
+        wget "https://github.com/lsd-rs/lsd/releases/download/v${lsd_version}/lsd_${lsd_version}_${lsd_arch}${lsd_extra}.deb"
+        sudo dpkg -i lsd_${lsd_version}_${lsd_arch}${lsd_extra}.deb
+        rm lsd_${lsd_version}_${lsd_arch}${lsd_extra}.deb
     fi
 }
 
