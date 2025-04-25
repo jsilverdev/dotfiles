@@ -256,6 +256,13 @@ function configure_git_local () {
     [ ! -e ~/.gitconfig.local ] && touch ~/.gitconfig.local
 }
 
+function configure_wsl() {
+    if grep -qi microsoft /proc/version && [[ ! -e /etc/wsl.conf ]]; then
+        sudo cp "${DOTFILES_DIR}/config/wsl/wsl.conf" /etc/wsl.conf
+        echo -e "${GREEN}wsl.conf configured successfully!${RESET}"
+    fi
+}
+
 function install_optional_packages () {
     local packages=(
         "fnm"
@@ -273,6 +280,7 @@ function install_optional_packages () {
 
 pre_setup_tasks
 configure_git_local
+configure_wsl
 install_must_have_packages
 setup_dot_files
 configure_ssh_key
