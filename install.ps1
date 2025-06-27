@@ -204,6 +204,7 @@ function InstallOptionalApps {
         @{ id = "6"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" } }
         @{ id = "7"; name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -alias "" } }
         @{ id = "8"; name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -alias "" } }
+        @{ id = "9"; name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -alias "" } }
     )
 
     Write-Host "             Optionals"
