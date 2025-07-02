@@ -34,6 +34,11 @@ function CheckWinget() {
     }
 }
 
+function isAdmin() {
+    $user = [Security.Principal.WindowsIdentity]::GetCurrent()
+    return (New-Object Security.Principal.WindowsPrincipal $user).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
+}
+
 function ConfigureSSHKey() {
     ## This is only with admin:
     # Get-Service -Name ssh-agent | Set-Service -StartupType Auto
