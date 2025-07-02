@@ -127,6 +127,8 @@ function InstallMustHaveApps {
     }
 
     $installs = @(
+        $(InstallWithWinget -appId "Microsoft.PowerToys" -update:$updateFlag),
+        $(InstallWithWinget -appId "Starship.Starship" -alias "starship" -update:$updateFlag),
         $(InstallWithWinget -appId "zyedidia.micro" -alias "micro" -update:$updateFlag),
         $(InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd" -update:$updateFlag),
         $(InstallWithWinget -appId "sharkdp.bat" -alias "bat" -update:$updateFlag),
@@ -134,9 +136,7 @@ function InstallMustHaveApps {
         $(InstallWithWinget -appId "junegunn.fzf" -alias "fzf" -update:$updateFlag),
         $(InstallWithWinget -appId "sharkdp.fd" -alias "fd" -update:$updateFlag),
         $(InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag),
-        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag),
-        $(InstallWithWinget -appId "Starship.Starship" -alias "starship" -update:$updateFlag),
-        $(InstallWithWinget -appId "Microsoft.PowerToys" -alias "" -update:$updateFlag)
+        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag)
     )
 
     foreach ($install in $installs) {
@@ -184,16 +184,20 @@ function SetupDotFiles {
 
     $DOTBOT_FULL_PATH_BIN = Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN
 
-    $BASE_CONFIG_FILE = "install.conf.yaml"
-    &$PYTHON $DOTBOT_FULL_PATH_BIN -d $BASEDIR -c $BASE_CONFIG_FILE
+    $BASE_CONFIG = "base"
+    $CONFIG_SUFFIX = ".yaml"
+    $META_DIR = "meta"
+    $CONFIG_DIR = "configs"
+
+    &$PYTHON $DOTBOT_FULL_PATH_BIN -d $BASEDIR -c "${META_DIR}/${BASE_CONFIG}${CONFIG_SUFFIX}"
 
     $CONFIGS = @(
-        "meta/configs/pwsh.yaml",
-        "meta/configs/windows.yaml"
+        "pwsh",
+        "windows"
     )
 
-    foreach ($config in $CONFIGS) {
-        &$PYTHON $DOTBOT_FULL_PATH_BIN -d $BASEDIR -c $config
+    foreach ($CONFIG in $CONFIGS) {
+        &$PYTHON $DOTBOT_FULL_PATH_BIN -d $BASEDIR -c "${META_DIR}/${CONFIG_DIR}/${CONFIG}${CONFIG_SUFFIX}"
     }
     ### End DotBot
 }
@@ -208,9 +212,9 @@ function InstallOptionalApps {
         @{ id = "4"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" } },
         @{ id = "5"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" } },
         @{ id = "6"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" } }
-        @{ id = "7"; name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -alias "" } }
-        @{ id = "8"; name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -alias "" } }
-        @{ id = "9"; name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -alias "" } }
+        @{ id = "7"; name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" } }
+        @{ id = "8"; name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" } }
+        @{ id = "9"; name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" } }
     )
 
     Write-Host "             Optionals"
