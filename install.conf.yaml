@@ -3,6 +3,10 @@
       create: true
       relink: true
 
+- shell:
+    - ["git submodule sync --quiet --recursive", "Sync submodules"]
+    - ["git submodule update --init --recursive", "Installing submodules"]
+
 - create:
     ~/.ssh:
       mode: 0700
@@ -13,60 +17,20 @@
     ~/.config:
       recursive: true
 
-- crossplatform-link:
+- link:
     # starship
     ~/.config/starship/:
       glob: true
       path: config/starship/*
       force: true
-      fallback_to_copy: true
-      create: true
-    # zsh
-    ~/.config/zsh/:
-      platform: "!win32"
-      path: config/zsh/**
-      glob: true
-      force: true
-      create: true
-      exclude: [ "config/general/.zshrc" , "config/general/.zshenv" ]
-    ~/.config/zsh/.zshrc:
-      platform: "!win32"
-      path: config/zsh/.zshrc
-      force: true
-      create: true
-    ~/.zshenv:
-      platform: "!win32"
-      path: config/zsh/.zshenv
-      force: true
-      create: true
-    # pwsh
-    ~/.config/pwsh/:
-      platform: win32
-      fallback_to_copy: true
-      glob: true
-      path: config/pwsh/**
-      force: true
-      create: true
-      exclude: [ "config/pwsh/profile.ps1"]
-    ${PROFILE_LOCATION}:
-      platform: win32
-      fallback_to_copy: true
-      path: config/pwsh/profile.ps1
-      force: true
       create: true
     # Git
     ~/:
       glob: true
-      fallback_to_copy: true
       path: config/general/.*
       relink: true
       exclude: [ "config/general/.gitignore_global" ]
     ~/.fdignore:
       path: config/general/.gitignore_global
-      fallback_to_copy: true
       force: true
       create: true
-
-- windows:
-    fonts:
-      path: "fonts/"

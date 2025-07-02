@@ -1,0 +1,6 @@
+- plugins:
+    - lib/dotbot-plugins/dotbot-windows/dotbot_windows.py
+
+- windows:
+    fonts:
+      path: "fonts/"

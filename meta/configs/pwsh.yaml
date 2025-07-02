@@ -1,0 +1,12 @@
+- link:
+    # pwsh
+    ~/.config/pwsh/:
+      glob: true
+      path: config/pwsh/**
+      force: true
+      create: true
+      exclude: ["config/pwsh/profile.ps1"]
+    ${PROFILE_LOCATION}:
+      path: config/pwsh/profile.ps1
+      force: true
+      create: true

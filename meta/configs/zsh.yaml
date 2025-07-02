@@ -1,0 +1,16 @@
+- link:
+    # zsh
+    ~/.config/zsh/:
+      path: config/zsh/**
+      glob: true
+      force: true
+      create: true
+      exclude: ["config/general/.zshrc", "config/general/.zshenv"]
+    ~/.config/zsh/.zshrc:
+      path: config/zsh/.zshrc
+      force: true
+      create: true
+    ~/.zshenv:
+      path: config/zsh/.zshenv
+      force: true
+      create: true

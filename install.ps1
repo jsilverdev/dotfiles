@@ -160,19 +160,13 @@ function InstallMustHaveApps {
 
 function SetupDotFiles {
 
-    ### Start DotBot
-    $CONFIG = "install.conf.yaml"
-    $DOTBOT_DIR = "lib/dotbot"
-
-    $DOTBOT_BIN = "bin/dotbot"
     $BASEDIR = $PSScriptRoot
 
-    $DOTBOT_CROSSPLATFORM = "lib/dotbot-plugins/dotbot-crossplatform/crossplatform.py"
-    $DOTBOT_WINDOWS = "lib/dotbot-plugins/dotbot-windows/dotbot_windows.py"
+    ### Start DotBot
+    $DOTBOT_BIN = "bin/dotbot"
+    $DOTBOT_DIR = "lib/dotbot"
 
     Set-Location $BASEDIR
-    git submodule sync --quiet --recursive
-    git submodule update --init --recursive
 
     $PYTHON = FindPython3
     if ([string]::IsNullOrEmpty($PYTHON)) {
@@ -187,8 +181,20 @@ function SetupDotFiles {
     }
     Write-Host "Running Dotbot..." -ForegroundColor Cyan
     $env:PROFILE_LOCATION = $profile.CurrentUserAllHosts ## PROFILE_LOCATION
-    &$PYTHON $(Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN) -d $BASEDIR -c $CONFIG -p $DOTBOT_CROSSPLATFORM -p $DOTBOT_WINDOWS $Args
 
+    $DOTBOT_FULL_PATH_BIN = Join-Path $BASEDIR -ChildPath $DOTBOT_DIR | Join-Path -ChildPath $DOTBOT_BIN
+
+    $BASE_CONFIG_FILE = "install.conf.yaml"
+    &$PYTHON $DOTBOT_FULL_PATH_BIN -d $BASEDIR -c $BASE_CONFIG_FILE
+
+    $CONFIGS = @(
+        "meta/configs/pwsh.yaml",
+        "meta/configs/windows.yaml"
+    )
+
+    foreach ($config in $CONFIGS) {
+        &$PYTHON $DOTBOT_FULL_PATH_BIN -d $BASEDIR -c $config
+    }
     ### End DotBot
 }
 
