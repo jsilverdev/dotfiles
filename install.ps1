@@ -34,24 +34,6 @@ function CheckWinget() {
     }
 }
 
-function isAdmin() {
-    $user = [Security.Principal.WindowsIdentity]::GetCurrent()
-    return (New-Object Security.Principal.WindowsPrincipal $user).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-}
-
-function ConfigureSSHKey() {
-    ## This is only with admin:
-    # Get-Service -Name ssh-agent | Set-Service -StartupType Auto
-    # Start-Service ssh-agent # If not Started
-
-    $keyPath = "$HOME\.ssh\jsilverdev_key"
-
-    if (!(Test-Path -Path $keyPath)) {
-        Write-Host "SSH key not found at $keyPath. Generate..." -ForegroundColor Yellow
-        ssh-keygen -t ed25519 -C "jsilverdev" -f "$keyPath" -N ""
-    }
-}
-
 function InstallWithWinget() {
     param(
         [string]$appId,
@@ -311,5 +293,4 @@ DownloadFonts
 ConfigureGitLocal
 InstallMustHaveApps
 SetupDotFiles
-ConfigureSSHKey
 InstallOptionalApps
