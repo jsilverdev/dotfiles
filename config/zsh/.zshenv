@@ -26,6 +26,11 @@ export ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
 
 export FNM_DIR="${XDG_CONFIG_HOME}/fnm"
 
+# local bin
+export PATH="$PATH:$HOME/.local/bin"
+# cargo bin
+export PATH="$PATH:$HOME/.cargo/bin"
+
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';
 

@@ -47,17 +47,6 @@ detect_arch() {
   echo -e "${GREEN}Current arch is '${arch}'${RESET}"
 }
 
-function configure_ssh_key() {
-    key_path="$HOME/.ssh/jsilverdev_key"
-
-    if [ ! -f "$key_path" ]; then
-        echo -e "${YELLOW}SSH key not found at '$key_path'. Generate..${RESET}"
-        ssh-keygen -t ed25519 -C "jsilverdev" -f "$key_path" -N ""
-    fi
-    eval "$(ssh-agent -s)"
-    ssh-add $key_path
-}
-
 function install_with_apt () {
     local app=$1
 
@@ -230,14 +219,23 @@ function install_must_have_packages() {
 
 function setup_dot_files () {
 
+    DOTBOT_BIN="bin/dotbot"
     DOTBOT_DIR="lib/dotbot"
     DOTBOT_CONF_FILE="install.conf.yaml"
-    DOTBOT_CROSSPLATFORM="lib/dotbot-plugins/dotbot-crossplatform/crossplatform.py"
+    DOTBOT_FULL_PATH_BIN="${DOTFILES_DIR}/${DOTBOT_DIR}/bin/dotbot"
 
-    cd "$DOTFILES_DIR" && \
-        git submodule sync --quiet --recursive && \
-        git submodule update --init --recursive && \
-        "${DOTFILES_DIR}/${DOTBOT_DIR}/bin/dotbot" -d "$DOTFILES_DIR" -c "$DOTBOT_CONF_FILE" -p $DOTBOT_CROSSPLATFORM "${@}"
+    BASE_CONFIG="base"
+    CONFIG_SUFFIX=".yaml"
+    META_DIR="meta"
+    CONFIG_DIR="configs"
+
+    $DOTBOT_FULL_PATH_BIN -d "$DOTFILES_DIR" -c "${META_DIR}/${BASE_CONFIG}${CONFIG_SUFFIX}"
+
+    CONFIGS="zsh"
+
+    for config in $CONFIGS; do
+        $DOTBOT_FULL_PATH_BIN -d "$DOTFILES_DIR" -c "${META_DIR}/${CONFIG_DIR}/${config}${CONFIG_SUFFIX}"
+    done
 }
 
 function setup_default_shell() {
@@ -283,6 +281,5 @@ configure_git_local
 configure_wsl
 install_must_have_packages
 setup_dot_files
-configure_ssh_key
 setup_default_shell
 # install_optional_packages
