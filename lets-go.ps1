@@ -2,22 +2,6 @@ function RefreshPath() {
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
 
-function EnsureDevModeIsEnabled() {
-    try {
-        if ((Get-WindowsDeveloperLicense).IsValid) {
-            Write-Host "Developer Mode is Enabled" -ForegroundColor Green
-        }
-        else {
-            Write-Host "Please enable the Developer Mode and RESTART!!! before continue" -ForegroundColor Red
-            exit
-        }
-    }
-    catch {
-        Write-Host "An error occurred while checking the developer license: $_" -ForegroundColor Red
-        exit
-    }
-}
-
 function InstallWithWinget() {
     param(
         [string]$appId,
@@ -35,9 +19,6 @@ function InstallWithWinget() {
         Write-Host "$appId is not installed. Installing..." -ForegroundColor Yellow
         winget install -e --accept-source-agreements --accept-package-agreements --id $appId
     }
-    else {
-        Write-Host "$appId is already installed" -ForegroundColor Green
-    }
 }
 
 # Check winget and activate
@@ -46,8 +27,6 @@ if ($null -eq (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
     Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
     RefreshPath
 }
-
-EnsureDevModeIsEnabled
 
 # List apps to install
 Write-Host "Installing must-have apps..." -ForegroundColor Cyan
