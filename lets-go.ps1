@@ -32,7 +32,7 @@ if ($null -eq (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
 # List apps to install
 Write-Host "Installing must-have apps..." -ForegroundColor Cyan
 $installs = @(
-    $(InstallWithWinget -appId "Git.Git" -alias "git" -customArgs '/Components="gitlfs,assoc,windowsterminal" /o:EditorOption=VisualStudioCode /o:SSHOption=ExternalOpenSSH /o:CurlOption=WinSSL /o:CRLFOption=CRLFCommitAsIs'),
+    $(InstallWithWinget -appId "Git.Git" -alias "git" -customArgs '/Components="gitlfs,assoc,windowsterminal" /o:SSHOption=ExternalOpenSSH /o:CurlOption=WinSSL /o:CRLFOption=CRLFCommitAsIs'),
     $(InstallWithWinget -appId "Microsoft.PowerShell")
 )
 
