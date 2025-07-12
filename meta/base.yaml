@@ -24,12 +24,16 @@
       path: config/starship/*
       force: true
       create: true
-    # Git
+    # General config
     ~/:
       glob: true
       path: config/general/.*
       relink: true
-      exclude: [ "config/general/.gitignore_global" ]
+      exclude: [ "config/general/.gitignore*" ]
+    ~/.gitconfig:
+      path: config/general/.gitconfig
+      force: true
+      create: true
     ~/.fdignore:
       path: config/general/.gitignore_global
       force: true

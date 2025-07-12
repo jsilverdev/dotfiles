@@ -35,7 +35,8 @@ flutter-sdk
 .docker
 
 # Editors
-Postman
+Postman/*
+!Postman/files/
 .azuredatastudio
 .pki/
 .vscode
