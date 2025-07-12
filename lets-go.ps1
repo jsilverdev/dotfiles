@@ -5,7 +5,8 @@ function RefreshPath() {
 function InstallWithWinget() {
     param(
         [string]$appId,
-        [string]$alias
+        [string]$alias,
+        [string]$customArgs = ""
     )
 
     if (-not ([string]::IsNullOrEmpty($alias))) {
@@ -17,7 +18,7 @@ function InstallWithWinget() {
 
     if (-not $?) {
         Write-Host "$appId is not installed. Installing..." -ForegroundColor Yellow
-        winget install -e --accept-source-agreements --accept-package-agreements --id $appId
+        winget install -e --accept-source-agreements --accept-package-agreements --id $appId --custom "$customArgs"
     }
 }
 
@@ -31,8 +32,8 @@ if ($null -eq (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
 # List apps to install
 Write-Host "Installing must-have apps..." -ForegroundColor Cyan
 $installs = @(
-    $(InstallWithWinget -appId "Git.Git" -alias "git"),
-    $(InstallWithWinget -appId "Microsoft.PowerShell" -alias "")
+    $(InstallWithWinget -appId "Git.Git" -alias "git" -customArgs '/Components="gitlfs,assoc,windowsterminal" /o:EditorOption=VisualStudioCode /o:SSHOption=ExternalOpenSSH /o:CurlOption=WinSSL /o:CRLFOption=CRLFCommitAsIs'),
+    $(InstallWithWinget -appId "Microsoft.PowerShell")
 )
 
 # For each app, check if not present and install

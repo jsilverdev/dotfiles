@@ -129,6 +129,7 @@ function install_starship () {
 function install_debian_packages () {
 
     debian_apps=(
+        "git"
         "wget"
         "zsh"
         "micro"
@@ -139,6 +140,7 @@ function install_debian_packages () {
         "rsync"
         "zip"
         "unzip"
+        "less"
     )
 
     for app in ${debian_apps[@]}; do
@@ -172,6 +174,7 @@ function install_with_pacman () {
 
 function install_arch_packages () {
     pacman_apps=(
+        "git"
         "wget"
         "zsh"
         "micro"
@@ -190,6 +193,7 @@ function install_arch_packages () {
         "rsync"
         "zip"
         "unzip"
+        "less"
     )
 
     for app in ${pacman_apps[@]}; do

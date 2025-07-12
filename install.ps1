@@ -3,9 +3,13 @@ function RefreshPath() {
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
 
-function CheckIsPowershellCompatible() {
+function CheckRequiredApps() {
     if ($PSVersionTable.PSVersion.Major -lt 7) {
         Write-Host "This script requires PowerShell 7 or newer. Exiting..." -ForegroundColor Red
+        exit
+    }
+    if (-not (Get-Command -Name git -ErrorAction SilentlyContinue)) {
+        Write-Host "Git is not installed. Please install Git before running this script." -ForegroundColor Red
         exit
     }
 }
@@ -292,7 +296,7 @@ function ConfigureGitLocal {
 
 
 RefreshPath
-CheckIsPowershellCompatible
+CheckRequiredApps
 EnsureDevModeIsEnabled
 CheckWinget
 DownloadFonts
