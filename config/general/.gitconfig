@@ -11,6 +11,7 @@
 	longpaths = true
 	editor = code --wait
 	pager = delta
+	autocrlf = false
 [interactive]
 	diffFilter = delta --color-only
 [push]
