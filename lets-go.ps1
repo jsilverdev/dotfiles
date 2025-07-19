@@ -18,7 +18,11 @@ function InstallWithWinget() {
 
     if (-not $?) {
         Write-Host "$appId is not installed. Installing..." -ForegroundColor Yellow
-        winget install -e --accept-source-agreements --accept-package-agreements --id $appId --custom "$customArgs"
+        $wingetArgs = @('-e', '--accept-source-agreements', '--accept-package-agreements', '--id', $appId)
+        if (-not [string]::IsNullOrWhiteSpace($customArgs)) {
+            $wingetArgs += @('--custom', $customArgs)
+        }
+        winget install @wingetArgs
     }
 }
 
