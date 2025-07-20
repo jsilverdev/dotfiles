@@ -11,7 +11,7 @@
     ~/.ssh:
       mode: 0700
 
-- clean: ['~']
+- clean: ["~"]
 
 - clean:
     ~/.config:
@@ -29,12 +29,17 @@
       glob: true
       path: config/general/.*
       relink: true
-      exclude: [ "config/general/.gitignore*" ]
+      exclude: ["config/general/.gitignore*"]
     ~/.gitconfig:
       path: config/general/.gitconfig
       force: true
       create: true
     ~/.fdignore:
       path: config/general/.gitignore_global
+      force: true
+      create: true
+    ~/.ssh/:
+      glob: true
+      path: config/ssh/*
       force: true
       create: true

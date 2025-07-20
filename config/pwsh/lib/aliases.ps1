@@ -13,9 +13,9 @@ function which ($command) {
     Get-Command -Name $command -ErrorAction SilentlyContinue |
     Select-Object -ExpandProperty Path -ErrorAction SilentlyContinue
 }
-function ll() { lsd -lAFh }
-function lb() { lsd -lhSA }
-function lm() { lsd -tA -1 }
+function ll($params) { lsd -lAFh $params }
+function lb($params) { lsd -lhSA $params }
+function lm($params) { lsd -tA -1 $params }
 function touch($file) {
     New-Item -Path "$file" -ItemType File
 }

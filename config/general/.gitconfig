@@ -12,6 +12,7 @@
 	editor = code --wait
 	pager = delta
 	autocrlf = false
+	sshCommand = ssh -i ~/.ssh/jsilverdev.pub
 [interactive]
 	diffFilter = delta --color-only
 [push]
