@@ -130,6 +130,7 @@ function install_debian_packages () {
 
     debian_apps=(
         "git"
+        "curl"
         "wget"
         "zsh"
         "micro"
@@ -175,6 +176,7 @@ function install_with_pacman () {
 function install_arch_packages () {
     pacman_apps=(
         "git"
+        "curl"
         "wget"
         "zsh"
         "micro"
