@@ -32,4 +32,6 @@ bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets
 
 ## Acknowledgments
 
-This dotfiles repository is inspired by [Lissy93's dotfiles](https://github.com/Lissy93/dotfiles).
+This dotfiles repository is inspired by:
+- [Lissy93's dotfiles](https://github.com/Lissy93/dotfiles)
+- [KEVINNITRO DOTFILES](https://github.com/KevinNitroG/dotfiles).
