@@ -1,3 +1,8 @@
+
+$env:VISUAL = "code"
+$env:PAGER = "delta"
+$env:PYTHONIOENCODING = "utf-8"
+
 $PS_USER_FOLDER = "D:\$ENV:USERNAME"
 if (Test-Path -Path $PS_USER_FOLDER) {
     $ENV:STARSHIP_CACHE = "$PS_USER_FOLDER\Temp\starship"

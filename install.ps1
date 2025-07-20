@@ -55,7 +55,8 @@ function InstallWithWinget() {
     if (-not $?) {
         Write-Host "$appId is not installed. Installing..." -ForegroundColor Yellow
         winget install -e --accept-source-agreements --accept-package-agreements --id $appId
-    } elseif ($update) {
+    }
+    elseif ($update) {
         Write-Host "Updating $appId..." -ForegroundColor Yellow
         winget upgrade --accept-source-agreements --id $appId
     }
@@ -142,18 +143,26 @@ function InstallMustHaveApps {
     foreach ($install in $installs) {
         $install
     }
+
     # Install must-have modules
-    if (-not (Get-Module -ListAvailable -Name PSFzf)) {
-        Install-Module -Name PSFzf -Scope CurrentUser -Force
-    }
-    else {
-        Write-Host "PSFzf module is already installed" -ForegroundColor Green
-    }
-    if (-not (Get-Module -ListAvailable -Name git-aliases)) {
-        Install-Module -Name git-aliases -Scope CurrentUser -AllowClobber
-    }
-    else {
-        Write-Host "git-aliases module is already installed" -ForegroundColor Green
+    $modules = @(
+        "PSFzf",
+        "git-aliases",
+        "syntax-highlighting"
+    )
+    foreach ($module in $modules) {
+        if ((Get-InstalledPSResource -Name $module)) {
+            Write-Host "$module module is already installed" -ForegroundColor Green
+
+            if ($updateFlag) {
+                Write-Host "Updating $module module..." -ForegroundColor Yellow
+                Update-PSResource -Name $module -Scope CurrentUser -Force
+            }
+            continue
+        }
+
+        Write-Host "Installing $module module..." -ForegroundColor Cyan
+        Install-PSResource -Name $module -Scope CurrentUser -TrustRepository
     }
     ### End Installing must-have apps
 }

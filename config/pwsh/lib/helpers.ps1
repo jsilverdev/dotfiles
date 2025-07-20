@@ -39,6 +39,9 @@ if (Get-Command "$FD_COMMAND" -ErrorAction SilentlyContinue) {
 }
 ## End Fzf
 
+# Syntax Highlighting
+Import-Module syntax-highlighting
+
 # fnm
 if (Get-Command -Name fnm -ErrorAction SilentlyContinue) {
     fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
