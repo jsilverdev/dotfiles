@@ -27,13 +27,39 @@ FD_COMMAND='fd'
 
 # Add fd customizations for fzf
 if [ -x "$(command -v $FD_COMMAND)" ]; then
- export FZF_DEFAULT_COMMAND="$FD_COMMAND --ignore-file ~/.fdignore --type f --follow --exclude .git"
- export FZF_DEFAULT_OPS='--extended --border --info=inline --height 80%'
- export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
- export FZF_CTRL_T_OPTS="--bind='ctrl-y:reload($FD_COMMAND --hidden --no-ignore --follow --exclude .git),ctrl-t:reload($FZF_DEFAULT_COMMAND)' $FZF_DEFAULT_OPS --preview '(bat --style=numbers --color=always --line-range :500 {} 2> /dev/null || cat {} || tree -C {}) 2> /dev/null | head -200'"
- export FZF_ALT_C_COMMAND="$FD_COMMAND --ignore-file ~/.fdignore --type d"
- export FZF_ALT_C_OPTS="--bind='alt-v:reload($FD_COMMAND --type d --hidden --no-ignore --exclude .git),alt-c:reload($FZF_ALT_C_COMMAND)' $FZF_DEFAULT_OPS --preview 'tree -C {} | head -200'"
+  # Commands
+  export FZF_DEFAULT_COMMAND="$FD_COMMAND --ignore-file $HOME/.fdignore --type f --follow --exclude .git"
+  export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  export FZF_ALT_C_COMMAND="$FD_COMMAND --ignore-file $HOME/.fdignore --type d"
+
+  # Options
+  export FZF_DEFAULT_OPTS="--extended --border --info=inline --height 80% --layout=reverse
+    --color=border:#808080,spinner:#fede5d,hl:#7E8E91,fg:#E3E5E5,header:#7E8E91,info:#1d99f3,pointer:#1d99f3,marker:#03edf9,fg+:#E3E5E5,prompt:#03edf9,hl+:#03edf9"
+
+  BAT_COMMAND='bat'
+  [ -x "$(command -v batcat)" ] && BAT_COMMAND='batcat'
+
+  FZF_CTRL_T_TOGGLE='ctrl-a:transform:[[ $FZF_PROMPT =~ Default ]] &&
+      echo "change-prompt(All> )+reload('$FD_COMMAND' --hidden --no-ignore --follow --exclude .git)" ||
+      echo "change-prompt(Default> )+reload('$FZF_CTRL_T_COMMAND')"'
+  export FZF_CTRL_T_OPTS="
+    --scheme=path
+    --prompt 'Default> '
+    --bind '$FZF_CTRL_T_TOGGLE'
+    --header 'CTRL-A: Toggle Show'
+    --preview '$BAT_COMMAND -n --color=always --line-range :200 {}'"
+
+  FZF_ALT_C_TOGGLE='ctrl-a:transform:[[ $FZF_PROMPT =~ Default ]] &&
+      echo "change-prompt(All> )+reload('$FD_COMMAND' --type d --hidden --no-ignore --exclude .git)" ||
+      echo "change-prompt(Default> )+reload('$FZF_ALT_C_COMMAND')"'
+  export FZF_ALT_C_OPTS="
+    --scheme=path
+    --prompt 'Default> '
+    --bind='$FZF_ALT_C_TOGGLE'
+    --header 'CTRL-A: Toggle Show'
+    --preview 'tree -C {} | head -200'"
 fi
+
 ### End fzf
 
 ### Starship
