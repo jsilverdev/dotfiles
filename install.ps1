@@ -49,7 +49,7 @@ function InstallWithWinget() {
         Get-Command -Name $alias -ErrorAction SilentlyContinue | Out-Null
     }
     else {
-        winget list --accept-source-agreements --id $appId -n 1 | Out-Null
+        winget list --accept-source-agreements -e --id $appId -n 1 | Out-Null
     }
 
     if (-not $?) {
@@ -124,6 +124,8 @@ function InstallMustHaveApps {
     }
 
     $installs = @(
+        $(InstallWithWinget -appId "Google.Chrome.EXE" -update:$updateFlag),
+        $(InstallWithWinget -appId "7zip.7zip" -update:$updateFlag),
         $(InstallWithWinget -appId "Microsoft.PowerToys" -update:$updateFlag),
         $(InstallWithWinget -appId "Starship.Starship" -alias "starship" -update:$updateFlag),
         $(InstallWithWinget -appId "zyedidia.micro" -alias "micro" -update:$updateFlag),
@@ -203,15 +205,16 @@ function InstallOptionalApps {
     ### Start Installing optional apps
 
     $optionalApps = @(
-        @{ id = "1"; name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" -update:$updateFlag } },
-        @{ id = "2"; name = "puro"; install = { InstallPuroFVM -update:$updateFlag } },
-        @{ id = "3"; name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
-        @{ id = "4"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
-        @{ id = "5"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" -update:$updateFlag } },
-        @{ id = "6"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" -update:$updateFlag } }
-        @{ id = "7"; name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -update:$updateFlag } }
-        @{ id = "8"; name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -update:$updateFlag } }
-        @{ id = "9"; name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -update:$updateFlag } }
+        @{ id = "1"; name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -update:$updateFlag } },
+        @{ id = "2"; name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" -update:$updateFlag } },
+        @{ id = "3"; name = "puro"; install = { InstallPuroFVM -update:$updateFlag } },
+        @{ id = "4"; name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
+        @{ id = "5"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
+        @{ id = "6"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" -update:$updateFlag } },
+        @{ id = "7"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" -update:$updateFlag } }
+        @{ id = "8"; name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -update:$updateFlag } }
+        @{ id = "9"; name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -update:$updateFlag } }
+        @{ id = "10"; name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -update:$updateFlag } }
     )
 
     Write-Host "             Optionals"
