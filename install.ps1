@@ -305,8 +305,22 @@ function ConfigureGitLocal {
     if (-not (Test-Path "$HOME\.gitconfig.local")) { New-Item -Path "$HOME\.gitconfig.local" -ItemType File }
 }
 
-### End Utils
+function SettingsForWindowsTerminal {
+    $source = "$PSScriptRoot\config\win-terminal\config.json"
+    $destination = "$($env:LOCALAPPDATA)\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"
 
+    if (-not (Test-Path $destination)) {
+        Write-Host "Windows Terminal settings file not found. Skipping configuration." -ForegroundColor Yellow
+        return
+    }
+
+    jq --slurpfile src "$source" '
+        .profiles.defaults = ($src[0].profiles.defaults) |
+        .schemes = ($src[0].schemes)
+    ' "$destination" | Set-Content -Path $destination
+}
+
+### End Utils
 
 RefreshPath
 CheckRequiredApps
@@ -316,4 +330,5 @@ DownloadFonts
 ConfigureGitLocal
 InstallMustHaveApps
 SetupDotFiles
+SettingsForWindowsTerminal
 InstallOptionalApps
