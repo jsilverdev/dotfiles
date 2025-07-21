@@ -147,11 +147,10 @@ function InstallMustHaveApps {
     # Install must-have modules
     $modules = @(
         "PSFzf",
-        "git-aliases",
-        "syntax-highlighting"
+        "git-aliases"
     )
     foreach ($module in $modules) {
-        if ((Get-InstalledPSResource -Name $module)) {
+        if (Get-InstalledPSResource -Name $module -ErrorAction SilentlyContinue) {
             Write-Host "$module module is already installed" -ForegroundColor Green
 
             if ($updateFlag) {
@@ -162,7 +161,7 @@ function InstallMustHaveApps {
         }
 
         Write-Host "Installing $module module..." -ForegroundColor Cyan
-        Install-PSResource -Name $module -Scope CurrentUser -TrustRepository
+        Install-Module -Name $module -Scope CurrentUser -Force -AllowClobber
     }
     ### End Installing must-have apps
 }
