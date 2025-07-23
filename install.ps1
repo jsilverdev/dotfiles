@@ -137,6 +137,7 @@ function InstallMustHaveApps {
         $(InstallWithWinget -appId "sharkdp.fd" -alias "fd" -update:$updateFlag),
         $(InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag),
         $(InstallWithWinget -appId "jqlang.jq" -alias "jq" -update:$updateFlag),
+        $(InstallWithWinget -appId "albertony.npiperelay" -alias "npiperelay" -update:$updateFlag),
         $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag)
     )
 

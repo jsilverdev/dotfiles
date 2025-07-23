@@ -7,3 +7,8 @@ source "${zsh_dir}/lib/envs.zsh"
 source "${zsh_dir}/lib/zinit.zsh"
 source "${zsh_dir}/lib/completions.zsh"
 source "${zsh_dir}/lib/utilities.zsh"
+
+# WSL
+if grep -qi microsoft /proc/version; then
+    source "${zsh_dir}/lib/wsl.zsh"
+fi
