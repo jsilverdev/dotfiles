@@ -300,9 +300,12 @@ function DownloadFonts {
 
 }
 
-function ConfigureGitLocal {
+function ConfigureGit {
     # Create .gitconfig.local if not exists
     if (-not (Test-Path "$HOME\.gitconfig.local")) { New-Item -Path "$HOME\.gitconfig.local" -ItemType File }
+    git submodule sync --quiet --recursive
+    git submodule update --init --recursive
+    Write-Host "Git successfully configured!" -ForegroundColor Green
 }
 
 function SettingsForWindowsTerminal {
@@ -333,7 +336,7 @@ CheckRequiredApps
 EnsureDevModeIsEnabled
 CheckWinget
 DownloadFonts
-ConfigureGitLocal
+ConfigureGit
 InstallMustHaveApps
 SetupDotFiles
 SettingsForWindowsTerminal

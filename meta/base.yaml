@@ -3,10 +3,6 @@
       create: true
       relink: true
 
-- shell:
-    - ["git submodule sync --quiet --recursive", "Sync submodules"]
-    - ["git submodule update --init --recursive", "Installing submodules"]
-
 - create:
     ~/.ssh:
       mode: 0700

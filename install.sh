@@ -258,8 +258,11 @@ function setup_default_shell() {
     fi
 }
 
-function configure_git_local () {
+function configure_git () {
     [ ! -e ~/.gitconfig.local ] && touch ~/.gitconfig.local
+    git submodule sync --quiet --recursive
+    git submodule update --init --recursive
+    echo -e "${GREEN}Git successfully configured!${RESET}"
 }
 
 function configure_wsl() {
@@ -285,7 +288,7 @@ function install_optional_packages () {
 
 
 pre_setup_tasks
-configure_git_local
+configure_git
 configure_wsl
 install_must_have_packages
 setup_dot_files
