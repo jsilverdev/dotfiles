@@ -313,9 +313,15 @@ function SettingsForWindowsTerminal {
         return
     }
 
-    jq --slurpfile src "$source" '
-        .profiles.defaults = ($src[0].profiles.defaults) |
-        .schemes = ($src[0].schemes)
+    jq --indent 4 --slurpfile src "$source" '
+        . as $original |
+        $src[0] |
+        to_entries |
+        map(select(.key != "profiles")) |
+        reduce .[] as $item ($original;
+            . * {($item.key): $item.value}
+        ) |
+        . * {"profiles": {"defaults": $src[0].profiles.defaults}}
     ' "$destination" | Set-Content -Path $destination
 }
 

@@ -1,4 +1,7 @@
 {
+    "firstWindowPreference": "defaultProfile",
+    "windowingBehavior": "useExisting",
+    "centerOnLaunch": true,
     "profiles": {
         "defaults": {
             "bellStyle": "window",
