@@ -143,6 +143,7 @@ function install_debian_packages () {
         "unzip"
         "less"
         "socat"
+        "binutils"
     )
 
     for app in ${debian_apps[@]}; do
@@ -198,6 +199,7 @@ function install_arch_packages () {
         "unzip"
         "less"
         "socat"
+        "binutils"
     )
 
     for app in ${pacman_apps[@]}; do

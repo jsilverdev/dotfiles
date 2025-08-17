@@ -34,6 +34,10 @@ else
     alias lm="ls -tA -1" # List files sorted by last modified
 fi
 
+# Fix .zhistory
+
+alias clearzhistory='cd $HOME/.config/zsh && mv .zhistory .zhistory_bad && strings .zhistory_bad > .zhistory && fc -R .zhistory && cd $HOME'
+
 ### End General
 
 # Laravel
