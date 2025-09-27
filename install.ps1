@@ -125,7 +125,6 @@ function InstallMustHaveApps {
     }
 
     $installs = @(
-        $(InstallWithWinget -appId "Google.Chrome.EXE" -update:$updateFlag),
         $(InstallWithWinget -appId "7zip.7zip" -update:$updateFlag),
         $(InstallWithWinget -appId "Microsoft.PowerToys" -update:$updateFlag),
         $(InstallWithWinget -appId "Starship.Starship" -alias "starship" -update:$updateFlag),
@@ -137,8 +136,8 @@ function InstallMustHaveApps {
         $(InstallWithWinget -appId "sharkdp.fd" -alias "fd" -update:$updateFlag),
         $(InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag),
         $(InstallWithWinget -appId "jqlang.jq" -alias "jq" -update:$updateFlag),
-        $(InstallWithWinget -appId "albertony.npiperelay" -alias "npiperelay" -update:$updateFlag),
-        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag)
+        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag),
+        $(InstallWithWinget -appId "BiomeJS.Biome" -alias "biome" -update:$updateFlag)
     )
 
     foreach ($install in $installs) {
@@ -215,36 +214,55 @@ function InstallOptionalApps {
     ### Start Installing optional apps
 
     $optionalApps = @(
-        @{ id = "1"; name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -update:$updateFlag } },
-        @{ id = "2"; name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" -update:$updateFlag } },
-        @{ id = "3"; name = "puro"; install = { InstallPuroFVM -update:$updateFlag } },
-        @{ id = "4"; name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
-        @{ id = "5"; name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
-        @{ id = "6"; name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" -update:$updateFlag } },
-        @{ id = "7"; name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" -update:$updateFlag } }
-        @{ id = "8"; name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -update:$updateFlag } }
-        @{ id = "9"; name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -update:$updateFlag } }
-        @{ id = "10"; name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -update:$updateFlag } }
+        @{ name = "Google Chrome" ; install = { InstallWithWinget -appId "Google.Chrome" -update:$updateFlag } },
+        @{ name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -update:$updateFlag } },
+        @{ name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" -update:$updateFlag } },
+        @{ name = "puro"; install = { InstallPuroFVM -update:$updateFlag } },
+        @{ name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
+        @{ name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
+        @{ name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" -update:$updateFlag } },
+        @{ name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" -update:$updateFlag } },
+        @{ name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -update:$updateFlag } },
+        @{ name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -update:$updateFlag } },
+        @{ name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -update:$updateFlag } },
+        @{ name = "npiperelay" ; install = { InstallWithWinget -appId "albertony.npiperelay" -alias "npiperelay" -update:$updateFlag } }
     )
 
     Write-Host "             Optionals"
     Write-Host "-----------------------------------" -ForegroundColor Cyan
     Write-Host "         Choose to Install"
     Write-Host "-----------------------------------" -ForegroundColor Cyan
-    $optionalApps | ForEach-Object { $_.id + ". Install " + $_.name }
+    $optionalApps | ForEach-Object -Begin { $i = 1 } -Process { "$i. Install $($_.name)"; $i++ }
     Write-Host "-----------------------------------" -ForegroundColor Cyan
+    Write-Host "You can use ranges like 1-4 or individual numbers separated by commas" -ForegroundColor Yellow
 
-    $rawOptions = Read-Host ("Select one or more options separated by commas [1,2,3...]" )
-    $options = $rawOptions -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" } | Select-Object -Unique
+    $rawOptions = Read-Host ("Select options [e.g. 1-4,8,10]" )
+    $options = @()
+
+    foreach ($option in $rawOptions -split ',') {
+        $option = $option.Trim()
+        if ($option -match '^(\d+)-(\d+)$') {
+            $start = [int]$Matches[1]
+            $end = [int]$Matches[2]
+            if ($start -le $end) {
+                $options += $start..$end
+            }
+        }
+        elseif ($option -match '^\d+$') {
+            $options += [int]$option
+        }
+    }
+
+    $options = $options | Where-Object { $_ -gt 0 -and $_ -le $optionalApps.Count } | Select-Object -Unique | Sort-Object
 
     if ($options.Count -eq 0) {
         Write-Host "Skipping optional installs..." -ForegroundColor Yellow
     }
     else {
-        foreach ($app in $optionalApps) {
-            if ($options -contains $app.id) {
-                & $app.install
-            }
+        foreach ($index in $options) {
+            $app = $optionalApps[$index - 1]
+            Write-Host "Installing $($app.name)..." -ForegroundColor Cyan
+            & $app.install
         }
         ## Refresh Path
         RefreshPath
