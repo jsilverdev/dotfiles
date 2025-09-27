@@ -66,8 +66,5 @@ fi
 eval "$(starship init zsh)"
 
 ### FNM (Fast Node Manager)
-FNM_PATH="${HOME}/.local/share/fnm"
-[ -d "$FNM_PATH" ] && export PATH="$FNM_PATH:$PATH"
-if hash "fnm" 2> /dev/null; then
-  eval "$(fnm env --use-on-cd --shell zsh)"
-fi
+[ -d "$FNM_DIR" ] && export PATH="$FNM_DIR:$PATH" && hash "fnm" 2> /dev/null && eval "$(fnm env --use-on-cd --shell zsh)"
+
