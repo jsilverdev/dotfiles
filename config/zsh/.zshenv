@@ -31,7 +31,9 @@ export PATH="$PATH:$HOME/.local/bin"
 # cargo bin
 export PATH="$PATH:$CARGO_HOME/bin"
 # fnm bin
-export PATH="$FNM_DIR:$PATH"
+export PATH="$PATH:$FNM_DIR"
+# biome bin
+export PATH="$PATH:$HOME/.biome/bin"
 
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';
