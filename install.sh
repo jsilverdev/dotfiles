@@ -165,7 +165,6 @@ function install_debian_packages () {
         "unzip"
         "less"
         "socat"
-        "binutils"
     )
 
     for app in ${debian_apps[@]}; do
@@ -176,6 +175,7 @@ function install_debian_packages () {
     check_package_or_run "lsd" "install_lsd"
     check_package_or_run "batcat" "sudo apt install bat --assume-yes"
     check_package_or_run "fdfind" "sudo apt install fd-find --assume-yes" # fd
+    check_package_or_run "strings" "sudo apt install binutils --assume-yes" # strings
     check_package_or_run "fzf" "install_fzf"
     check_package_or_run "vivid" "install_vivid"
     check_package_or_run "delta" "install_delta"
