@@ -29,7 +29,9 @@ export FNM_DIR="${XDG_DATA_HOME}/fnm"
 # local bin
 export PATH="$PATH:$HOME/.local/bin"
 # cargo bin
-export PATH="$PATH:$HOME/.cargo/bin"
+export PATH="$PATH:$CARGO_HOME/bin"
+# fnm bin
+export PATH="$FNM_DIR:$PATH"
 
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';

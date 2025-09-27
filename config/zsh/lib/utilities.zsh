@@ -23,7 +23,7 @@ fi
 
 # fd command
 FD_COMMAND='fd'
-[ -f "/etc/debian_version" ] && FD_COMMAND='fdfind'
+[ -x "$(command -v fdfind)" ] && FD_COMMAND='fdfind'
 
 # Add fd customizations for fzf
 if [ -x "$(command -v $FD_COMMAND)" ]; then
@@ -66,5 +66,4 @@ fi
 eval "$(starship init zsh)"
 
 ### FNM (Fast Node Manager)
-[ -d "$FNM_DIR" ] && export PATH="$FNM_DIR:$PATH" && hash "fnm" 2> /dev/null && eval "$(fnm env --use-on-cd --shell zsh)"
-
+hash "fnm" 2> /dev/null && eval "$(fnm env --use-on-cd --shell zsh)"
