@@ -28,13 +28,16 @@ export FNM_DIR="${XDG_DATA_HOME}/fnm"
 
 # local bin
 export PATH="$PATH:$HOME/.local/bin"
-# cargo bin
-export PATH="$PATH:$CARGO_HOME/bin"
-# fnm bin
-export PATH="$PATH:$FNM_DIR"
-# biome bin
-export PATH="$PATH:$HOME/.biome/bin"
-
+if [ -f "/etc/debian_version" ]; then
+    # cargo bin
+    export PATH="$PATH:$CARGO_HOME/bin"
+    # fnm bin
+    export PATH="$PATH:$FNM_DIR"
+    # biome bin
+    export PATH="$PATH:$HOME/.biome/bin"
+    # mvn
+    export PATH="$PATH:$HOME/.apache-maven/bin"
+fi
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';
 
