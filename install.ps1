@@ -216,7 +216,7 @@ function InstallOptionalApps {
     $optionalApps = @(
         @{ name = "Google Chrome" ; install = { InstallWithWinget -appId "Google.Chrome" -update:$updateFlag } },
         @{ name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -update:$updateFlag } },
-        @{ name = "fnm" ; install = { InstallWithWinget -appId "Schniz.fnm" -alias "fnm" -update:$updateFlag } },
+        @{ name = "mise-en-place" ; install = { InstallWithWinget -appId "jdx.mise" -alias "mise" -update:$updateFlag } },
         @{ name = "puro"; install = { InstallPuroFVM -update:$updateFlag } },
         @{ name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
         @{ name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
