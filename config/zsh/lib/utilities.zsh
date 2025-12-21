@@ -33,7 +33,7 @@ if [ -x "$(command -v $FD_COMMAND)" ]; then
   export FZF_ALT_C_COMMAND="$FD_COMMAND --ignore-file $HOME/.fdignore --type d"
 
   # Options
-  export FZF_DEFAULT_OPTS="--extended --border --info=inline --height 80% --layout=reverse
+  export FZF_DEFAULT_OPTS="--extended --border --info=inline --height 80% --layout=default
     --color=border:#808080,spinner:#fede5d,hl:#7E8E91,fg:#E3E5E5,header:#7E8E91,info:#1d99f3,pointer:#1d99f3,marker:#03edf9,fg+:#E3E5E5,prompt:#03edf9,hl+:#03edf9"
 
   BAT_COMMAND='bat'
@@ -57,7 +57,7 @@ if [ -x "$(command -v $FD_COMMAND)" ]; then
     --prompt 'Default> '
     --bind='$FZF_ALT_C_TOGGLE'
     --header 'CTRL-A: Toggle Show'
-    --preview 'tree -C {} | head -200'"
+    --preview 'lsd --tree -I ".**" --depth 3 --color=always --icon=always --sort=none {}'"
 fi
 
 ### End fzf

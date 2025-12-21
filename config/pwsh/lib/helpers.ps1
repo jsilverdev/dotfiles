@@ -15,7 +15,7 @@ if (Get-Command "$FD_COMMAND" -ErrorAction SilentlyContinue) {
 
     # Options
     $env:FZF_DEFAULT_OPTS = "
-        --extended --border --info=inline --height 80%
+        --extended --border --info=inline --height 80% --layout=default
         --color=border:#808080,spinner:#fede5d,hl:#7E8E91,fg:#E3E5E5,header:#7E8E91,info:#1d99f3,pointer:#1d99f3,marker:#03edf9,fg+:#E3E5E5,prompt:#03edf9,hl+:#03edf9
         "
 
@@ -32,7 +32,8 @@ if (Get-Command "$FD_COMMAND" -ErrorAction SilentlyContinue) {
         --scheme=path
         --prompt 'Default> '
         --bind '$FZF_ALT_C_TOGGLE'
-        --header 'CTRL-A: Toggle Show'"
+        --header 'CTRL-A: Toggle Show'
+        --preview 'lsd --tree -I .** --depth 3 --color=always --icon=always --sort=none {}'"
 
     Import-Module PSFzf
     Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
