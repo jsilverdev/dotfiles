@@ -27,12 +27,8 @@ export ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
 # local bin
 export PATH="$PATH:$HOME/.local/bin"
 if [ -f "/etc/debian_version" ]; then
-    # cargo bin
-    export PATH="$PATH:$CARGO_HOME/bin"
     # biome bin
     export PATH="$PATH:$HOME/.biome/bin"
-    # mvn
-    export PATH="$PATH:$HOME/.apache-maven/bin"
 fi
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';
