@@ -65,5 +65,5 @@ fi
 ### Starship
 eval "$(starship init zsh)"
 
-### FNM (Fast Node Manager)
-hash "fnm" 2> /dev/null && eval "$(fnm env --use-on-cd --shell zsh)"
+### mise-en-place
+hash "mise" 2> /dev/null && eval "$(mise activate zsh)"

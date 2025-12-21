@@ -24,15 +24,11 @@ export PYENV_ROOT="$HOME/.pyenv"
 
 export ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
 
-export FNM_DIR="${XDG_DATA_HOME}/fnm"
-
 # local bin
 export PATH="$PATH:$HOME/.local/bin"
 if [ -f "/etc/debian_version" ]; then
     # cargo bin
     export PATH="$PATH:$CARGO_HOME/bin"
-    # fnm bin
-    export PATH="$PATH:$FNM_DIR"
     # biome bin
     export PATH="$PATH:$HOME/.biome/bin"
     # mvn

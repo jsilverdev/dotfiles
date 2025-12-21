@@ -300,7 +300,6 @@ function configure_wsl() {
 
 function install_optional_packages () {
     local packages=(
-        "fnm"
         "puro"
         "composer"
         "DBeaver"
