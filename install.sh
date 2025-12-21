@@ -298,17 +298,95 @@ function configure_wsl() {
     fi
 }
 
+function install_puro () {
+    curl -o- https://puro.dev/install.sh | bash
+}
+
+function install_mise_en_place () {
+    local mise_arch=$arch
+    case "${mise_arch}" in
+        aarch64) mise_arch="arm64" ;;
+    esac
+
+    if apt-cache show mise &>/dev/null; then
+        sudo apt update -y && sudo apt install -y mise
+    else
+        sudo apt update -y && sudo apt install -y curl
+        sudo install -dm 755 /etc/apt/keyrings
+        curl -fSs https://mise.jdx.dev/gpg-key.pub | sudo tee /etc/apt/keyrings/mise-archive-keyring.pub 1> /dev/null
+        echo "deb [signed-by=/etc/apt/keyrings/mise-archive-keyring.pub arch=$mise_arch] https://mise.jdx.dev/deb stable main" | sudo tee /etc/apt/sources.list.d/mise.list
+        sudo apt update -y
+        sudo apt install -y mise
+    fi
+}
+
+function install_docker () {
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh ./get-docker.sh
+    rm get-docker.sh
+    sudo usermod -aG docker $USER
+}
+
+function install_dagger () {
+    curl -fsSL https://dl.dagger.io/dagger/install.sh | BIN_DIR=$HOME/.local/bin sh
+}
+
 function install_optional_packages () {
     local packages=(
-        "puro"
-        "composer"
-        "DBeaver"
-        "Postman"
-        "Bruno"
-        "kubectl"
-        "dagger"
-        "docker"
+        "puro|deb:check_package_or_run puro install_puro|arch:check_package_or_run puro install_puro"
+        "mise-en-place|deb:check_package_or_run mise install_mise_en_place|arch:install_with_pacman mise"
+        "docker|deb:check_package_or_run docker install_docker|arch:install_with_pacman docker"
+        "dagger|deb:check_package_or_run dagger install_dagger|arch:install_with_pacman dagger"
     )
+
+    echo -e "\n${CYAN}Choose optional packages to install:${RESET}"
+    for i in "${!packages[@]}"; do
+        IFS='|' read -ra pkg_info <<< "${packages[i]}"
+        pkg_name="${pkg_info[0]}"
+        echo -e "${CYAN}$((i+1)). ${pkg_name}${RESET}"
+    done
+    echo -e "${CYAN}You can use ranges like 1-4 or individual numbers separated by commas:${RESET}"
+    read -p "Enter your choices (or press Enter to skip): " user_input
+    if [ -z "$user_input" ]; then
+        echo -e "${YELLOW}No optional packages selected for installation.${RESET}"
+        return
+    fi
+    # Parse user input to get selected indices
+    IFS=',' read -ra selections <<< "$user_input"
+    selected_indices=()
+    for sel in "${selections[@]}"; do
+        if [[ $sel == *-* ]]; then
+            IFS='-' read -ra range <<< "$sel"
+            for ((i=range[0]; i<=range[1]; i++)); do
+                [[ $i =~ ^[0-9]+$ ]] && (( i >= 1 && i <= ${#packages[@]} )) && selected_indices+=("$i")
+            done
+        else
+            [[ $sel =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#packages[@]} )) && selected_indices+=("$sel")
+        fi
+    done
+    # Remove duplicates
+    IFS=$'\n' selected_indices=($(sort -u <<<"${selected_indices[*]}"))
+    unset IFS
+    # If no valid selections, exit
+    if [ ${#selected_indices[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No valid optional packages selected for installation.${RESET}"
+        return
+    fi
+    # Install selected packages (placeholder logic)
+
+    for index in "${selected_indices[@]}"; do
+        idx=$((index-1))
+        IFS='|' read -ra pkg_info <<< "${packages[idx]}"
+        pkg_name="${pkg_info[0]}"
+        deb_func="${pkg_info[1]#deb:}"
+        arch_func="${pkg_info[2]#arch:}"
+        echo -e "${CYAN}[Installing]${LIGHT} ${pkg_name}...${RESET}"
+        if [ -f "/etc/debian_version" ]; then
+            $deb_func
+        elif [ -f "/etc/arch-release" ]; then
+            $arch_func
+        fi
+    done
 }
 
 
@@ -318,4 +396,4 @@ configure_wsl
 install_must_have_packages
 setup_dot_files
 setup_default_shell
-# install_optional_packages
+install_optional_packages
