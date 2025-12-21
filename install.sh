@@ -300,6 +300,7 @@ function configure_wsl() {
 
 function install_puro () {
     curl -o- https://puro.dev/install.sh | bash
+    git restore "${DOTFILES_DIR}/config/zsh/.zshenv"
 }
 
 function install_mise_en_place () {
