@@ -37,6 +37,16 @@ if (Get-Command "$FD_COMMAND" -ErrorAction SilentlyContinue) {
 
     Import-Module PSFzf
     Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+
+
+    Set-PSReadLineKeyHandler -Key Alt+x -ScriptBlock {
+        $line = $null
+        $cursor = $null
+        [Microsoft.PowerShell.PSConsoleReadLine]::GetBufferState([ref]$line, [ref]$cursor)
+
+        Invoke-PsFzfRipgrep -SearchString $line
+    }
+
 }
 ## End Fzf
 

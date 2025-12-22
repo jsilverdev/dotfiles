@@ -137,7 +137,8 @@ function InstallMustHaveApps {
         $(InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag),
         $(InstallWithWinget -appId "jqlang.jq" -alias "jq" -update:$updateFlag),
         $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag),
-        $(InstallWithWinget -appId "BiomeJS.Biome" -alias "biome" -update:$updateFlag)
+        $(InstallWithWinget -appId "BiomeJS.Biome" -alias "biome" -update:$updateFlag),
+        $(InstallWithWinget -appId "BurntSushi.ripgrep.MSVC" -alias "rg" -update:$updateFlag)
     )
 
     foreach ($install in $installs) {

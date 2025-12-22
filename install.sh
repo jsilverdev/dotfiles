@@ -165,6 +165,7 @@ function install_debian_packages () {
         "unzip"
         "less"
         "socat"
+        "ripgrep"
     )
 
     for app in ${debian_apps[@]}; do
@@ -223,7 +224,8 @@ function install_arch_packages () {
         "less"
         "socat"
         "binutils"
-        "biome"
+        "biome",
+        "ripgrep"
     )
 
     for app in ${pacman_apps[@]}; do
