@@ -57,7 +57,7 @@ if [ -x "$(command -v $FD_COMMAND)" ]; then
     --prompt 'Default> '
     --bind='$FZF_ALT_C_TOGGLE'
     --header 'CTRL-A: Toggle Show'
-    --preview 'lsd --tree -I ".**" --depth 3 --color=always --icon=always --sort=none {}'"
+    --preview 'lsd --tree --depth 3 --color=always --icon=always --sort=none {}'"
 fi
 
 

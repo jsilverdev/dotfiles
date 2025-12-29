@@ -33,7 +33,7 @@ if (Get-Command "$FD_COMMAND" -ErrorAction SilentlyContinue) {
         --prompt 'Default> '
         --bind '$FZF_ALT_C_TOGGLE'
         --header 'CTRL-A: Toggle Show'
-        --preview 'lsd --tree -I .** --depth 3 --color=always --icon=always --sort=none {}'"
+        --preview 'lsd --tree --depth 3 --color=always --icon=always --sort=none {}'"
 
     Import-Module PSFzf
     Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
