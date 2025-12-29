@@ -356,17 +356,24 @@ function install_optional_packages () {
         echo -e "${YELLOW}No optional packages selected for installation.${RESET}"
         return
     fi
-    # Parse user input to get selected indices
-    IFS=',' read -ra selections <<< "$user_input"
+    # Parse user input to get selected indices and trim spaces
+    IFS=',' read -ra selections <<< "$(echo $user_input | tr -d ' ')"
     selected_indices=()
     for sel in "${selections[@]}"; do
-        if [[ $sel == *-* ]]; then
+        if [[ $sel =~ ^[0-9]+-[0-9]+$ ]]; then
             IFS='-' read -ra range <<< "$sel"
-            for ((i=range[0]; i<=range[1]; i++)); do
-                [[ $i =~ ^[0-9]+$ ]] && (( i >= 1 && i <= ${#packages[@]} )) && selected_indices+=("$i")
+            start=${range[0]}
+            end=${range[1]}
+            for ((i=start; i<=end; i++)); do
+                if (( i >= 1 && i <= ${#packages[@]} )); then
+                    selected_indices+=("$i")
+                fi
             done
-        else
-            [[ $sel =~ ^[0-9]+$ ]] && (( sel >= 1 && sel <= ${#packages[@]} )) && selected_indices+=("$sel")
+
+        elif [[ $sel =~ ^[0-9]+$ ]]; then
+            if (( sel >= 1 && sel <= ${#packages[@]} )); then
+                selected_indices+=("$sel")
+            fi
         fi
     done
     # Remove duplicates
@@ -377,8 +384,7 @@ function install_optional_packages () {
         echo -e "${YELLOW}No valid optional packages selected for installation.${RESET}"
         return
     fi
-    # Install selected packages (placeholder logic)
-
+    # Install selected packages
     for index in "${selected_indices[@]}"; do
         idx=$((index-1))
         IFS='|' read -ra pkg_info <<< "${packages[idx]}"
