@@ -52,6 +52,8 @@ function install_with_apt () {
 
     if hash "${app}" 2> /dev/null; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
+    elif dpkg -s "${app}" &> /dev/null; then
+            echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via APT${RESET}"
     elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
         echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
     else
@@ -165,6 +167,9 @@ function install_debian_packages () {
         "unzip"
         "less"
         "socat"
+        "bat"
+        "fd-find" # fd
+        "binutils" # strings
         "ripgrep"
     )
 
@@ -174,9 +179,6 @@ function install_debian_packages () {
 
     check_package_or_run "fastfetch" "install_fastfetch"
     check_package_or_run "lsd" "install_lsd"
-    check_package_or_run "batcat" "sudo apt install bat --assume-yes"
-    check_package_or_run "fdfind" "sudo apt install fd-find --assume-yes" # fd
-    check_package_or_run "strings" "sudo apt install binutils --assume-yes" # strings
     check_package_or_run "fzf" "install_fzf"
     check_package_or_run "vivid" "install_vivid"
     check_package_or_run "delta" "install_delta"
@@ -224,7 +226,7 @@ function install_arch_packages () {
         "less"
         "socat"
         "binutils"
-        "biome",
+        "biome"
         "ripgrep"
     )
 
@@ -312,9 +314,9 @@ function install_mise_en_place () {
     esac
 
     if apt-cache show mise &>/dev/null; then
-        sudo apt update -y && sudo apt install -y mise
+        sudo apt install -y mise
     else
-        sudo apt update -y && sudo apt install -y curl
+        sudo apt install -y curl
         sudo install -dm 755 /etc/apt/keyrings
         curl -fSs https://mise.jdx.dev/gpg-key.pub | sudo tee /etc/apt/keyrings/mise-archive-keyring.pub 1> /dev/null
         echo "deb [signed-by=/etc/apt/keyrings/mise-archive-keyring.pub arch=$mise_arch] https://mise.jdx.dev/deb stable main" | sudo tee /etc/apt/sources.list.d/mise.list
