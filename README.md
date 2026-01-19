@@ -35,3 +35,11 @@ bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets
 This dotfiles repository is inspired by:
 - [Lissy93's dotfiles](https://github.com/Lissy93/dotfiles)
 - [KEVINNITRO DOTFILES](https://github.com/KevinNitroG/dotfiles).
+
+## Roadmap:
+
+- [ ] Force to install required apps in lets-go.sh
+- [ ] Check always first if developer license is active in lets-go.ps1
+- [ ] Include more alternative install apps (Steam, Epic, Ubisoft Connect, Discord)
+- [ ] Install WSL (wsl --install --no-distribution)
+- [ ] Add and config ~/.wslconfig
