@@ -26,10 +26,6 @@ export ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
 
 # local bin
 export PATH="$PATH:$HOME/.local/bin"
-if [ -f "/etc/debian_version" ]; then
-    # biome bin
-    export PATH="$PATH:$HOME/.biome/bin"
-fi
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';
 

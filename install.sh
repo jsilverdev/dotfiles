@@ -128,28 +128,6 @@ function install_starship () {
     curl -sS https://starship.rs/install.sh | sh
 }
 
-function install_biome () {
-    local biome_arch=$arch
-    case "${biome_arch}" in
-        aarch64) biome_arch="arm64" ;;
-        amd64) biome_arch="x64" ;;
-    esac
-
-    download_url=$(
-        curl -s https://api.github.com/repos/biomejs/biome/releases/latest | \
-        sed -n 's/.*"browser_download_url": "\([^"]*linux-'${biome_arch}'[^"]*\)".*/\1/p' | \
-        head -n1
-    )
-    [ -z "$download_url" ] && {
-        echo -e "${RED}Failed to get download URL for biome${RESET}" && return 1;
-    }
-    (mkdir -p "$HOME/.biome/bin" && wget -q "${download_url}" -O "$HOME/.biome/bin/biome" && chmod +x "$HOME/.biome/bin/biome") || {
-        echo -e "${RED}Failed to download biome from ${download_url}${RESET}" && \
-        rm -rf "$HOME/.biome/bin" && \
-        return 1;
-    }
-}
-
 function install_debian_packages () {
 
     debian_apps=(
@@ -183,7 +161,6 @@ function install_debian_packages () {
     check_package_or_run "vivid" "install_vivid"
     check_package_or_run "delta" "install_delta"
     check_package_or_run "starship" "install_starship"
-    check_package_or_run "biome" "install_biome"
 }
 
 function install_with_pacman () {
@@ -226,7 +203,6 @@ function install_arch_packages () {
         "less"
         "socat"
         "binutils"
-        "biome"
         "ripgrep"
     )
 
