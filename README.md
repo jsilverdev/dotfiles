@@ -42,4 +42,4 @@ This dotfiles repository is inspired by:
 - [x] Check always first if developer license is active in lets-go.ps1
 - [x] Include more alternative install apps (Steam, Epic, Ubisoft Connect, Discord)
 - [x] Install WSL (wsl --install --no-distribution)
-- [ ] Add and config ~/.wslconfig
+- [x] Add and config ~/.wslconfig
