@@ -224,6 +224,9 @@ function InstallOptionalApps {
         @{ name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" -update:$updateFlag } },
         @{ name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -update:$updateFlag } },
         @{ name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -update:$updateFlag } },
+        @{ name = "Steam" ; install = { InstallWithWinget -appId "Valve.Steam" -update:$updateFlag } },
+        @{ name = "Ubisoft Connect" ; install = { InstallWithWinget -appId "Ubisoft.Connect" -update:$updateFlag } },
+        @{ name = "Discord" ; install = { InstallWithWinget -appId "Discord.Discord" -update:$updateFlag } },
         @{ name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -update:$updateFlag } },
         @{ name = "npiperelay" ; install = { InstallWithWinget -appId "albertony.npiperelay" -alias "npiperelay" -update:$updateFlag } }
     )
@@ -347,6 +350,11 @@ function SettingsForWindowsTerminal {
     ' "$destination" | Set-Content -Path $destination
 }
 
+function ConfigureWsl {
+    Write-Host "Installing WSL..." -ForegroundColor Cyan
+    wsl --install --no-distribution
+}
+
 ### End Utils
 
 RefreshPath
@@ -359,3 +367,4 @@ InstallMustHaveApps
 SetupDotFiles
 SettingsForWindowsTerminal
 InstallOptionalApps
+ConfigureWsl

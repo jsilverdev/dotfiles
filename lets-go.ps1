@@ -2,6 +2,22 @@ function RefreshPath() {
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
 
+function EnsureDevModeIsEnabled() {
+    try {
+        if ((Get-WindowsDeveloperLicense).IsValid) {
+            Write-Host "Developer Mode is Enabled" -ForegroundColor Green
+        }
+        else {
+            Write-Host "Please enable the Developer Mode and RESTART!!! before continue" -ForegroundColor Red
+            exit
+        }
+    }
+    catch {
+        Write-Host "An error occurred while checking the developer license: $_" -ForegroundColor Red
+        exit
+    }
+}
+
 function InstallWithWinget() {
     param(
         [string]$appId,
@@ -25,6 +41,8 @@ function InstallWithWinget() {
         winget install @wingetArgs
     }
 }
+# Ensure Dev Mode is Enabled
+EnsureDevModeIsEnabled
 
 # Check winget and activate
 if ($null -eq (Get-Command -Name winget -ErrorAction SilentlyContinue)) {
