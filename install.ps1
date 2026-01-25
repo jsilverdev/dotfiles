@@ -86,6 +86,7 @@ function InstallPuroFVM {
 
     if ((Test-Path -Path $puroBinary)) {
         &"$puroBinary" install-puro --promote
+        # puro use -g stable
     }
     else {
         Write-Host "puro cannot be downloaded" -ForegroundColor Red
