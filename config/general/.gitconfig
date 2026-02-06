@@ -1,6 +1,7 @@
 [user]
 	name = Julio Rios
 	email = jrp8900@gmail.com
+	signingkey = ~/.ssh/jsilverdev.pub
 [credential]
 	helper = store
 [credential "helperselector"]
@@ -23,3 +24,9 @@
 	side-by-side = true
 [include]
 	path = ~/.gitconfig.local
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[tag]
+	gpgsign = true
