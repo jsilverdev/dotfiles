@@ -27,6 +27,7 @@ bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets
 - [Dev Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development) is enabled
 
 ### 🐧 Linux
+- Debian / Arch Linux
 - Bash 4.0 or newer
 - curl
 
@@ -35,11 +36,3 @@ bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets
 This dotfiles repository is inspired by:
 - [Lissy93's dotfiles](https://github.com/Lissy93/dotfiles)
 - [KEVINNITRO DOTFILES](https://github.com/KevinNitroG/dotfiles).
-
-## Roadmap:
-
-- [x] Force to install required apps in lets-go.sh
-- [x] Check always first if developer license is active in lets-go.ps1
-- [x] Include more alternative install apps (Steam, Epic, Ubisoft Connect, Discord)
-- [x] Install WSL (wsl --install --no-distribution)
-- [x] Add and config ~/.wslconfig
