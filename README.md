@@ -28,7 +28,6 @@ bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets
 
 ### 🐧 Linux
 - Debian / Arch Linux
-- Bash 4.0 or newer
 - curl
 
 ## Acknowledgments
