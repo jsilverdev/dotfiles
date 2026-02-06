@@ -23,8 +23,8 @@ bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets
 ## Requirements
 
 ### 🖥️ Windows
-- PowerShell 5.0 or newer (This script install the last version of Powershell)
-- [Dev Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development) is enabled
+- PowerShell
+- [Dev Mode](https://learn.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development) enabled
 
 ### 🐧 Linux
 - Debian / Arch Linux
