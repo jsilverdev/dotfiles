@@ -321,6 +321,65 @@ function DownloadFonts {
 
 }
 
+function InstallUserFonts {
+    $sourceDir = Join-Path $PSScriptRoot "fonts"
+    $userFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
+    $fontRegistryKey = "HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+    $fontExtensions = @("*.otc", "*.otf", "*.ttc", "*.ttf")
+    $windowsVersion = [System.Environment]::OSVersion.Version
+
+    if ($windowsVersion.Major -lt 10 -or ($windowsVersion.Major -eq 10 -and $windowsVersion.Build -lt 17704)) {
+        Write-Host "User font installation requires Windows 10 build 17704 or newer." -ForegroundColor Red
+        return
+    }
+
+    if (-not (Test-Path -Path $sourceDir -PathType Container)) {
+        Write-Host "Font source directory not found: $sourceDir" -ForegroundColor Red
+        return
+    }
+
+    if ((Get-Item -LiteralPath $userFontsDir -ErrorAction SilentlyContinue) -is [System.IO.FileInfo]) {
+        Write-Host "User fonts path is a file: $userFontsDir" -ForegroundColor Red
+        return
+    }
+
+    if (-not (Test-Path -Path $userFontsDir -PathType Container)) {
+        New-Item -ItemType Directory -Path $userFontsDir -Force | Out-Null
+    }
+
+    $sourceFonts = @(foreach ($pattern in $fontExtensions) {
+        Get-ChildItem -Path $sourceDir -Filter $pattern -Recurse -File
+    })
+
+    if ($null -eq $sourceFonts -or $sourceFonts.Count -eq 0) {
+        Write-Host "No fonts found in $sourceDir" -ForegroundColor Yellow
+        return
+    }
+
+    $installedFonts = @{}
+    foreach ($font in Get-ChildItem -Path $userFontsDir -Recurse -File -ErrorAction SilentlyContinue) {
+        $installedFonts[$font.Name] = $font.FullName
+    }
+
+    foreach ($font in $sourceFonts | Sort-Object Name -Unique) {
+        if ($installedFonts.ContainsKey($font.Name)) {
+            Write-Host "Font '$($font.Name)' is already installed" -ForegroundColor Green
+            continue
+        }
+
+        $destination = Join-Path $userFontsDir $font.Name
+
+        try {
+            Copy-Item -LiteralPath $font.FullName -Destination $destination -Force
+            New-ItemProperty -Path $fontRegistryKey -Name "$($font.Name) (dotfiles)" -Value $destination -PropertyType String -Force | Out-Null
+            Write-Host "Installed font '$($font.Name)'" -ForegroundColor Cyan
+        }
+        catch {
+            Write-Host "Unable to install font '$($font.Name)': $_" -ForegroundColor Red
+        }
+    }
+}
+
 function ConfigureGit {
     # Create .gitconfig.local if not exists
     if (-not (Test-Path "$HOME\.gitconfig.local")) { New-Item -Path "$HOME\.gitconfig.local" -ItemType File }
@@ -362,6 +421,7 @@ CheckRequiredApps
 EnsureDevModeIsEnabled
 CheckWinget
 DownloadFonts
+InstallUserFonts
 ConfigureGit
 InstallMustHaveApps
 SetupDotFiles
