@@ -9,10 +9,26 @@
 .var
 .nv
 .themes/
+$RECYCLE.BIN/
+Thumbs.db
+desktop.ini
+Dropbox/
+Dropbox*/
+Google Drive/
+Google Drive*/
+iCloudDrive/
+iCloudDrive*/
+Syncthing/
+Syncthing*/
+OneDrive/
+OneDrive*/
 
 # node
 .nvm
 .npm
+.pnpm-store/
+.yarn/
+.bun/
 
 # Web
 .zoom
@@ -24,6 +40,7 @@
 .android
 Android
 .gradle
+.m2/
 
 # Dart & Flutter
 .dart
@@ -34,9 +51,28 @@ flutter-sdk
 # Docker
 .docker
 
+# Rust
+.cargo/
+.rustup/
+
+# Python
+.venv/
+venv/
+env/
+.mypy_cache/
+.pytest_cache/
+.tox/
+
+# Infra
+.terraform/
+.vagrant/
+
 # Editors
 Postman/*
 !Postman/files/
 .azuredatastudio
 .pki/
 .vscode
+.idea/
+.history/
+.vs/
