@@ -227,7 +227,6 @@ function InstallOptionalApps {
         @{ name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -update:$updateFlag } },
         @{ name = "Steam" ; install = { InstallWithWinget -appId "Valve.Steam" -update:$updateFlag } },
         @{ name = "Discord" ; install = { InstallWithWinget -appId "Discord.Discord" -update:$updateFlag } },
-        @{ name = "RustDesk"; install = { InstallWithWinget -appId "RustDesk.RustDesk" -update:$updateFlag } },
         @{ name = "npiperelay" ; install = { InstallWithWinget -appId "albertony.npiperelay" -alias "npiperelay" -update:$updateFlag } }
     )
 
