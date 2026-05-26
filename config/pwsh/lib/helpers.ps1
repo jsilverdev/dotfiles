@@ -1,6 +1,6 @@
 # Start starship
 function Invoke-Starship-PreCommand {
-    $host.ui.RawUI.WindowTitle = "PowerShell:` $pwd `a"
+    $host.ui.RawUI.WindowTitle = "Pwsh:` $pwd `a"
 }
 Invoke-Expression (&starship init powershell)
 # End starship
