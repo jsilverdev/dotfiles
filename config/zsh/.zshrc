@@ -2,7 +2,6 @@ zsh_dir="${ZDOTDIR:-$HOME/.config/zsh}"
 
 source "${zsh_dir}/lib/aliases.zsh"
 source "${zsh_dir}/lib/key-bindings.zsh"
-source "${zsh_dir}/lib/envs.zsh"
 source "${zsh_dir}/lib/completions.zsh"
 
 source "${zsh_dir}/lib/sheldon.zsh"

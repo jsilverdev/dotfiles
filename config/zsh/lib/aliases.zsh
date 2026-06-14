@@ -16,7 +16,7 @@ alias c.='cd ..'
 alias c..='cd ../../'
 alias c...='cd ../../../'
 alias c....='cd ../../../../'
-alias c.....='cd ../../../../'
+alias c.....='cd ../../../../../'
 alias cg='cd `git rev-parse --show-toplevel`' # Base of git project
 
 # ls

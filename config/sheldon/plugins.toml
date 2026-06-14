@@ -13,7 +13,7 @@ apply = ["fpath"]
 [plugins.compinit]
 inline = """
 autoload -Uz compinit
-compinit
+compinit -C
 """
 
 [plugins.zsh-autosuggestions]

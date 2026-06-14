@@ -1,6 +1,3 @@
-# Modify LS_COLORS with vivid (https://github.com/sharkdp/vivid)
-[ -x "$(command -v vivid)" ] && export LS_COLORS="$(vivid generate snazzy)"
-
 ### Start zhistory
 zhistory_file="${zsh_dir}/.zhistory"
 [[ ! -f "$zhistory_file" ]] && touch "$zhistory_file"

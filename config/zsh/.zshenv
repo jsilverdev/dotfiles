@@ -25,11 +25,21 @@ export PYENV_ROOT="$HOME/.pyenv"
 export ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
 
 # local bin
-export PATH="$PATH:$HOME/.local/bin"
+typeset -U path PATH
+path+=("$HOME/.local/bin")
+
+# Define Chrome executable
+if (( $+commands[google-chrome] )); then
+  export CHROME_EXECUTABLE="google-chrome"
+elif (( $+commands[google-chrome-stable] )); then
+  export CHROME_EXECUTABLE="google-chrome-stable"
+fi
+
+if [[ -r /proc/version && "$(< /proc/version)" == *[Mm]icrosoft* ]] || [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+  export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/config.toml"
+else
+  export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/lean.config.toml"
+fi
+
 # Encodings, languges and misc settings
 export PYTHONIOENCODING='UTF-8';
-
-export PATH="$PATH:$HOME/.puro/bin" # Added by Puro
-export PATH="$PATH:$HOME/.puro/shared/pub_cache/bin" # Added by Puro
-export PATH="$PATH:$HOME/.puro/envs/default/flutter/bin" # Added by Puro
-export PURO_ROOT="$HOME/.puro" # Added by Puro
