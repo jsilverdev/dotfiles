@@ -11,6 +11,42 @@ RESET='\033[0m'
 
 SRC_DIR=$(dirname "${0}")
 DOTFILES_DIR="${DOTFILES_DIR:-${SRC_DIR:-$HOME/.dotfiles}}"
+UPDATE_PACKAGES="${UPDATE_PACKAGES:-false}"
+
+function usage () {
+    echo "Usage: $0 [--update|-u]"
+    echo
+    echo "Options:"
+    echo "  -u, --update    Re-run package installers even when commands already exist"
+    echo "  -h, --help      Show this help message"
+}
+
+function parse_args () {
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            -u|--update)
+                UPDATE_PACKAGES=true
+                ;;
+            -h|--help)
+                usage
+                exit 0
+                ;;
+            *)
+                echo -e "${RED}Unknown option: $1${RESET}"
+                usage
+                exit 1
+                ;;
+        esac
+        shift
+    done
+}
+
+function updates_enabled () {
+    case "${UPDATE_PACKAGES}" in
+        1|true|TRUE|yes|YES|y|Y) return 0 ;;
+        *) return 1 ;;
+    esac
+}
 
 function pre_setup_tasks() {
     if [ ! -d "$DOTFILES_DIR" ]; then
@@ -21,6 +57,10 @@ function pre_setup_tasks() {
     source "${DOTFILES_DIR}/config/zsh/.zshenv"
 
     detect_arch
+
+    if updates_enabled; then
+        echo -e "${CYAN}Update mode enabled. Existing packages will be refreshed when possible.${RESET}"
+    fi
 }
 
 detect_arch() {
@@ -50,35 +90,98 @@ detect_arch() {
 function install_with_apt () {
     local app=$1
 
-    if hash "${app}" 2> /dev/null; then
+    if hash "${app}" 2> /dev/null && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
-    elif dpkg -s "${app}" &> /dev/null; then
+    elif dpkg -s "${app}" &> /dev/null && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via APT${RESET}"
     elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
         echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
     else
-        echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
-        sudo apt install ${app} --assume-yes
+        if updates_enabled && { hash "${app}" 2> /dev/null || dpkg -s "${app}" &> /dev/null; }; then
+            echo -e "${CYAN}[Updating]${LIGHT} ${app}...${RESET}"
+        else
+            echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
+        fi
+        sudo apt install "${app}" --assume-yes
     fi
 }
 
 function check_package_or_run () {
-    if hash "$1" 2> /dev/null; then
-        echo -e "${YELLOW}[Skipping]${LIGHT} $1 is already installed${RESET}"
+    local app=$1
+    local installer=$2
+
+    if hash "$app" 2> /dev/null && ! updates_enabled; then
+        echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed${RESET}"
     else
-        echo -e "${CYAN}[Installing]${LIGHT} Downloading $1...${RESET}"
-        $2
+        if hash "$app" 2> /dev/null; then
+            echo -e "${CYAN}[Updating]${LIGHT} $app...${RESET}"
+        else
+            echo -e "${CYAN}[Installing]${LIGHT} Downloading $app...${RESET}"
+        fi
+        "$installer"
     fi
+}
+
+function github_release_json () {
+    local repo=$1
+    local release
+    local releases
+
+    if release=$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null); then
+        printf '%s\n' "$release"
+        return 0
+    fi
+
+    releases=$(curl -fsSL "https://api.github.com/repos/${repo}/releases?per_page=10" 2>/dev/null) || return 1
+    jq -e 'map(select((.draft | not) and (.prerelease | not))) | .[0]' <<< "$releases"
+}
+
+function github_release_asset_url () {
+    local repo=$1
+    local asset_regex=$2
+    local release
+
+    release=$(github_release_json "$repo") || return 1
+
+    jq -er --arg asset_regex "$asset_regex" '
+        first(.assets[]?.browser_download_url | select(test($asset_regex)))
+    ' <<< "$release"
+}
+
+function install_github_deb_asset () {
+    local repo=$1
+    local asset_regex=$2
+    local asset_url
+    local deb_file
+    local install_status
+
+    asset_url=$(github_release_asset_url "$repo" "$asset_regex") || {
+        echo -e "${RED}Could not find a matching release asset for ${repo}.${RESET}"
+        return 1
+    }
+
+    deb_file="${asset_url##*/}"
+
+    wget -O "$deb_file" "$asset_url" || return 1
+    sudo dpkg -i "$deb_file"
+    install_status=$?
+    rm -f "$deb_file"
+
+    return "$install_status"
+}
+
+function debian_release_arch () {
+    case "$arch" in
+        aarch64) printf 'arm64\n' ;;
+        *) printf '%s\n' "$arch" ;;
+    esac
 }
 
 function install_fastfetch () {
     if apt-cache show fastfetch &>/dev/null; then
         sudo apt install -y fastfetch
     else
-        fastfetch_version=$(curl -s https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest | grep -Po '"tag_name": "\K[0-9.]+')
-        wget "https://github.com/fastfetch-cli/fastfetch/releases/download/${fastfetch_version}/fastfetch-linux-${arch}.deb"
-        sudo dpkg -i fastfetch-linux-${arch}.deb
-        rm fastfetch-linux-${arch}.deb
+        install_github_deb_asset "fastfetch-cli/fastfetch" "fastfetch-linux-${arch}\\.deb$"
     fi
 }
 
@@ -86,42 +189,34 @@ function install_lsd () {
     if apt-cache show lsd &>/dev/null; then
         sudo apt install -y lsd
     else
-        local lsd_arch=$arch
-        case "${lsd_arch}" in
-            aarch64) lsd_arch="arm64" ;;
-        esac
-        lsd_extra="_xz"
-        lsd_version=$(curl -s https://api.github.com/repos/lsd-rs/lsd/releases/latest | grep -Po '"tag_name": "v\K[0-9.]+')
-        wget "https://github.com/lsd-rs/lsd/releases/download/v${lsd_version}/lsd_${lsd_version}_${lsd_arch}${lsd_extra}.deb"
-        sudo dpkg -i lsd_${lsd_version}_${lsd_arch}${lsd_extra}.deb
-        rm lsd_${lsd_version}_${lsd_arch}${lsd_extra}.deb
+        local lsd_arch
+        lsd_arch=$(debian_release_arch)
+        install_github_deb_asset "lsd-rs/lsd" "lsd_.*_${lsd_arch}_xz\\.deb$"
     fi
 }
 
 function install_fzf () {
-    git clone https://github.com/junegunn/fzf.git ~/.config/fzf && ~/.config/fzf/install --bin
+    local fzf_dir="$HOME/.config/fzf"
+
+    if [ -d "$fzf_dir/.git" ]; then
+        git -C "$fzf_dir" pull --ff-only
+    else
+        git clone https://github.com/junegunn/fzf.git "$fzf_dir"
+    fi
+
+    "$fzf_dir/install" --bin
 }
 
 function install_vivid () {
-    local vivid_arch=$arch
-    case "${vivid_arch}" in
-        aarch64) vivid_arch="arm64" ;;
-    esac
-    vivid_version=$(curl -s https://api.github.com/repos/sharkdp/vivid/releases/latest | grep -Po '"tag_name": "v\K[0-9.]+')
-    wget "https://github.com/sharkdp/vivid/releases/download/v${vivid_version}/vivid_${vivid_version}_${vivid_arch}.deb"
-    sudo dpkg -i vivid_${vivid_version}_${vivid_arch}.deb
-    rm vivid_${vivid_version}_${vivid_arch}.deb
+    local vivid_arch
+    vivid_arch=$(debian_release_arch)
+    install_github_deb_asset "sharkdp/vivid" "vivid_.*_${vivid_arch}\\.deb$"
 }
 
 function install_delta () {
-    local delta_arch=$arch
-    case "${delta_arch}" in
-        aarch64) delta_arch="arm64" ;;
-    esac
-    delta_version=$(curl -s https://api.github.com/repos/dandavison/delta/releases/latest | grep -Po '"tag_name": "\K[0-9.]+')
-    wget "https://github.com/dandavison/delta/releases/download/${delta_version}/git-delta_${delta_version}_${delta_arch}.deb"
-    sudo dpkg -i git-delta_${delta_version}_${delta_arch}.deb
-    rm git-delta_${delta_version}_${delta_arch}.deb
+    local delta_arch
+    delta_arch=$(debian_release_arch)
+    install_github_deb_asset "dandavison/delta" "git-delta_.*_${delta_arch}\\.deb$"
 }
 
 function install_starship () {
@@ -129,8 +224,17 @@ function install_starship () {
 }
 
 function install_sheldon () {
+    local install_args=(
+        --repo rossmacarthur/sheldon
+        --to "$HOME/.local/bin"
+    )
+
+    if updates_enabled; then
+        install_args+=(--force)
+    fi
+
     curl --proto '=https' -fLsS https://rossmacarthur.github.io/install/crate.sh \
-        | bash -s -- --repo rossmacarthur/sheldon --to "$HOME/.local/bin"
+        | bash -s -- "${install_args[@]}"
 }
 
 function install_debian_packages () {
@@ -171,16 +275,25 @@ function install_debian_packages () {
 
 function install_with_pacman () {
     local app=$1
+    local pacman_app
+    local pacman_status
 
-    if hash "${app}" 2> /dev/null; then
+    pacman_app=$(printf '%s' "$app" | tr 'A-Z' 'a-z')
+    pacman_status=$(pacman -Qk "$pacman_app" 2> /dev/null)
+
+    if hash "${app}" 2> /dev/null && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
-        elif [[ $(echo $(pacman -Qk $(echo $app | tr 'A-Z' 'a-z') 2> /dev/null )) == *"total files"* ]]; then
+        elif [[ "$pacman_status" == *"total files"* ]] && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Pacman${RESET}"
         elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
         else
-            echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
-            sudo pacman -S ${app} --needed --noconfirm
+            if updates_enabled && { hash "${app}" 2> /dev/null || [[ "$pacman_status" == *"total files"* ]]; }; then
+                echo -e "${CYAN}[Updating]${LIGHT} ${app}...${RESET}"
+            else
+                echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
+            fi
+            sudo pacman -S "${app}" --needed --noconfirm
     fi
 }
 
@@ -384,6 +497,7 @@ function install_optional_packages () {
 }
 
 
+parse_args "$@"
 pre_setup_tasks
 configure_git
 configure_wsl

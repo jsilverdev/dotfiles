@@ -1,7 +1,6 @@
 ### Start General
 
 # zsh
-alias zshrc="vim ${zsh_dir}/.zshrc"
 alias reloadzsh="source ${zsh_dir}/.zshrc"
 
 # Explorer it
@@ -41,7 +40,6 @@ alias clearzhistory='cd $HOME/.config/zsh && mv .zhistory .zhistory_bad && strin
 ### End General
 
 # Laravel
-alias laravelnew="composer create-project laravel/laravel"
 alias sail='[ -f sail ] && sh sail || sh vendor/bin/sail'
 
 # Flutter
