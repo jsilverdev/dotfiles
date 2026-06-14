@@ -291,12 +291,6 @@ function configure_wsl() {
     fi
 }
 
-function install_puro () {
-    curl -o- https://puro.dev/install.sh | bash
-    git restore "${DOTFILES_DIR}/config/zsh/.zshenv"
-    # puro use -g stable
-}
-
 function install_mise_en_place () {
     local mise_arch=$arch
     case "${mise_arch}" in
@@ -328,7 +322,6 @@ function install_dagger () {
 
 function install_optional_packages () {
     local packages=(
-        "puro|deb:check_package_or_run puro install_puro|arch:check_package_or_run puro install_puro"
         "mise-en-place|deb:check_package_or_run mise install_mise_en_place|arch:install_with_pacman mise"
         "docker|deb:check_package_or_run docker install_docker|arch:install_with_pacman docker"
         "dagger|deb:check_package_or_run dagger install_dagger|arch:install_with_pacman dagger"

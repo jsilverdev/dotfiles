@@ -65,35 +65,6 @@ function InstallWithWinget() {
     }
 }
 
-function InstallPuroFVM {
-    param(
-        [switch]$update
-    )
-    if (Get-Command -Name puro -ErrorAction SilentlyContinue) {
-        Write-Host "puro is already installed" -ForegroundColor Green
-        if ($update) {
-            puro upgrade-puro
-        }
-        return
-    }
-    Write-Host "Installing Puro FVM..." -ForegroundColor Cyan
-    $apiUrl = "https://api.github.com/repos/pingbird/puro/releases/latest"
-    $latestGitInfo = Invoke-RestMethod -Uri $apiUrl -Headers @{ "User-Agent" = "PowerShell" }
-    $tagName = $latestGitInfo.tag_name
-    Write-Host "version to install: $tagName" -ForegroundColor Cyan
-    $puroBinary = "$env:temp\puro.exe"
-    Invoke-WebRequest -Uri "https://puro.dev/builds/$tagName/windows-x64/puro.exe" -OutFile $puroBinary
-
-    if ((Test-Path -Path $puroBinary)) {
-        &"$puroBinary" install-puro --promote
-        # puro use -g stable
-    }
-    else {
-        Write-Host "puro cannot be downloaded" -ForegroundColor Red
-    }
-
-}
-
 function GetPythonFromMise {
     try {
         $python = mise which python 2>$null
@@ -214,7 +185,6 @@ function InstallOptionalApps {
     $optionalApps = @(
         @{ name = "Google Chrome" ; install = { InstallWithWinget -appId "Google.Chrome" -update:$updateFlag } },
         @{ name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -update:$updateFlag } },
-        @{ name = "puro"; install = { InstallPuroFVM -update:$updateFlag } },
         @{ name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
         @{ name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
         @{ name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" -update:$updateFlag } },
