@@ -25,17 +25,19 @@ export PYENV_ROOT="$HOME/.pyenv"
 export ZDOTDIR="${XDG_CONFIG_HOME}/zsh"
 
 # local bin
-typeset -U path PATH
-path+=("$HOME/.local/bin")
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$PATH:$HOME/.local/bin" ;;
+esac
 
 # Define Chrome executable
-if (( $+commands[google-chrome] )); then
+if command -v "google-chrome" > /dev/null 2>&1; then
   export CHROME_EXECUTABLE="google-chrome"
-elif (( $+commands[google-chrome-stable] )); then
+elif command -v "google-chrome-stable" > /dev/null 2>&1; then
   export CHROME_EXECUTABLE="google-chrome-stable"
 fi
 
-if [[ -r /proc/version && "$(< /proc/version)" == *[Mm]icrosoft* ]] || [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]]; then
+if { [ -r /proc/version ] && grep -qi microsoft /proc/version; } || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
   export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/config.toml"
 else
   export STARSHIP_CONFIG="${XDG_CONFIG_HOME}/starship/lean.config.toml"
