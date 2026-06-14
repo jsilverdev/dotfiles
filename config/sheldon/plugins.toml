@@ -1,0 +1,37 @@
+shell = "zsh"
+
+[templates]
+source-if-arch = """
+{{ hooks?.pre | nl }}{% for file in files %}[[ -f /etc/arch-release ]] && source "{{ file }}"
+{% endfor %}{{ hooks?.post | nl }}"""
+
+[plugins.zsh-completions]
+github = "zsh-users/zsh-completions"
+dir = "src"
+apply = ["fpath"]
+
+[plugins.compinit]
+inline = """
+autoload -Uz compinit
+compinit
+"""
+
+[plugins.zsh-autosuggestions]
+github = "zsh-users/zsh-autosuggestions"
+use = ["{{ name }}.zsh"]
+
+[plugins.oh-my-zsh]
+github = "ohmyzsh/ohmyzsh"
+use = [
+    "lib/git.zsh",
+    "plugins/sudo/sudo.plugin.zsh",
+    "plugins/git/git.plugin.zsh",
+]
+
+[plugins.oh-my-zsh-archlinux]
+github = "ohmyzsh/ohmyzsh"
+use = ["plugins/archlinux/archlinux.plugin.zsh"]
+apply = ["source-if-arch"]
+
+[plugins.fast-syntax-highlighting]
+github = "zdharma-continuum/fast-syntax-highlighting"

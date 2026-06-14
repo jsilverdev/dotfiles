@@ -10,6 +10,10 @@
       path: config/zsh/.zshrc
       force: true
       create: true
+    ~/.config/sheldon/plugins.toml:
+      path: config/sheldon/plugins.toml
+      force: true
+      create: true
     ~/.zshenv:
       path: config/zsh/.zshenv
       force: true

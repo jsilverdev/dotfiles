@@ -128,6 +128,11 @@ function install_starship () {
     curl -sS https://starship.rs/install.sh | sh
 }
 
+function install_sheldon () {
+    curl --proto '=https' -fLsS https://rossmacarthur.github.io/install/crate.sh \
+        | bash -s -- --repo rossmacarthur/sheldon --to "$HOME/.local/bin"
+}
+
 function install_debian_packages () {
 
     debian_apps=(
@@ -161,6 +166,7 @@ function install_debian_packages () {
     check_package_or_run "vivid" "install_vivid"
     check_package_or_run "delta" "install_delta"
     check_package_or_run "starship" "install_starship"
+    check_package_or_run "sheldon" "install_sheldon"
 }
 
 function install_with_pacman () {
@@ -194,6 +200,7 @@ function install_arch_packages () {
         "vivid"
         "git-delta"
         "starship"
+        "sheldon"
         "bat"
         "python"
         "ufw"
@@ -250,6 +257,12 @@ function setup_dot_files () {
     for config in $CONFIGS; do
         $DOTBOT_FULL_PATH_BIN -d "$DOTFILES_DIR" -c "${META_DIR}/${CONFIG_DIR}/${config}${CONFIG_SUFFIX}"
     done
+}
+
+function setup_sheldon_plugins () {
+    if hash "sheldon" 2> /dev/null; then
+        sheldon lock
+    fi
 }
 
 function setup_default_shell() {
@@ -383,5 +396,6 @@ configure_git
 configure_wsl
 install_must_have_packages
 setup_dot_files
+setup_sheldon_plugins
 setup_default_shell
 install_optional_packages
