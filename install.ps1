@@ -94,24 +94,18 @@ function InstallPuroFVM {
 
 }
 
-function FindPython3 {
-    return Get-Command -Name python -ErrorAction SilentlyContinue |
-    Where-Object { & $_.Source --version 2>&1 | Select-String -Pattern "^Python 3\.\d+\.\d+" } |
-    Select-Object -First 1 -ExpandProperty Source
-}
-function InstallPython3 {
-    $wingetPython3 = winget search "python.python.3" | Select-String "Python.Python" | ForEach-Object {
-        # Extract both the Id (package name) and Version using regex
-        if ($_ -match '(\S+)\s+(\S+)\s+(\d+\.\d+\.\d+)') {
-            # Return both Id and Version as an object
-            [PSCustomObject]@{
-                Id      = $Matches[2]
-                Version = [Version]$Matches[3]
-            }
+function GetPythonFromMise {
+    try {
+        $python = mise which python 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            return $null
         }
-    } | Sort-Object Version -Descending | Select-Object -First 1
-    winget install -e --id $wingetPython3.Id
-    RefreshPath
+
+        return $python.Trim()
+    }
+    catch {
+        return $null
+    }
 }
 
 $updateFlag = $false
@@ -138,12 +132,15 @@ function InstallMustHaveApps {
         $(InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag),
         $(InstallWithWinget -appId "jqlang.jq" -alias "jq" -update:$updateFlag),
         $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag),
-        $(InstallWithWinget -appId "BurntSushi.ripgrep.MSVC" -alias "rg" -update:$updateFlag)
+        $(InstallWithWinget -appId "BurntSushi.ripgrep.MSVC" -alias "rg" -update:$updateFlag),
+        $(InstallWithWinget -appId "jdx.mise" -alias "mise" -update:$updateFlag)
     )
 
     foreach ($install in $installs) {
         $install
     }
+
+    RefreshPath
 
     # Install must-have modules
     $modules = @(
@@ -177,14 +174,14 @@ function SetupDotFiles {
 
     Set-Location $BASEDIR
 
-    $PYTHON = FindPython3
+    $PYTHON = GetPythonFromMise
     if ([string]::IsNullOrEmpty($PYTHON)) {
-        Write-Host "Cannot find Python 3. Installing..." -ForegroundColor Yellow
-        InstallPython3
-        $PYTHON = FindPython3
+        Write-Host "Cannot find Python 3 from mise. Installing..." -ForegroundColor Yellow
+        mise use --global python@latest
+        $PYTHON = GetPythonFromMise
 
         if ([string]::IsNullOrEmpty($PYTHON)) {
-            Write-Host "Error: Python can't not be found. Aborting..." -ForegroundColor Red
+            Write-Host "Error: Python can't not be found through mise. Aborting..." -ForegroundColor Red
             exit
         }
     }
@@ -217,7 +214,6 @@ function InstallOptionalApps {
     $optionalApps = @(
         @{ name = "Google Chrome" ; install = { InstallWithWinget -appId "Google.Chrome" -update:$updateFlag } },
         @{ name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -update:$updateFlag } },
-        @{ name = "mise-en-place" ; install = { InstallWithWinget -appId "jdx.mise" -alias "mise" -update:$updateFlag } },
         @{ name = "puro"; install = { InstallPuroFVM -update:$updateFlag } },
         @{ name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
         @{ name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
