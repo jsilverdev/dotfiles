@@ -1,3 +1,7 @@
+# mise-en-place
+if (Get-Command -Name mise -ErrorAction SilentlyContinue) {
+   (&mise activate pwsh) | Out-String | Invoke-Expression
+}
 # Start starship
 function Invoke-Starship-PreCommand {
     $host.ui.RawUI.WindowTitle = "Pwsh:` $pwd `a"
@@ -49,8 +53,3 @@ if (Get-Command "$FD_COMMAND" -ErrorAction SilentlyContinue) {
 
 }
 ## End Fzf
-
-# mise-en-place
-if (Get-Command -Name mise -ErrorAction SilentlyContinue) {
-   (&mise activate pwsh) | Out-String | Invoke-Expression
-}

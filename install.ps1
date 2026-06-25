@@ -91,27 +91,28 @@ function InstallMustHaveApps {
     }
 
     $installs = @(
-        $(InstallWithWinget -appId "7zip.7zip" -update:$updateFlag),
-        $(InstallWithWinget -appId "Microsoft.PowerToys" -update:$updateFlag),
-        $(InstallWithWinget -appId "Starship.Starship" -alias "starship" -update:$updateFlag),
-        $(InstallWithWinget -appId "zyedidia.micro" -alias "micro" -update:$updateFlag),
-        $(InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd" -update:$updateFlag),
-        $(InstallWithWinget -appId "sharkdp.bat" -alias "bat" -update:$updateFlag),
-        $(InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch" -update:$updateFlag),
-        $(InstallWithWinget -appId "junegunn.fzf" -alias "fzf" -update:$updateFlag),
-        $(InstallWithWinget -appId "sharkdp.fd" -alias "fd" -update:$updateFlag),
-        $(InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag),
-        $(InstallWithWinget -appId "jqlang.jq" -alias "jq" -update:$updateFlag),
-        $(InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag),
-        $(InstallWithWinget -appId "BurntSushi.ripgrep.MSVC" -alias "rg" -update:$updateFlag),
-        $(InstallWithWinget -appId "jdx.mise" -alias "mise" -update:$updateFlag)
+        { InstallWithWinget -appId "7zip.7zip" -update:$updateFlag },
+        { InstallWithWinget -appId "Microsoft.PowerToys" -update:$updateFlag },
+        { InstallWithWinget -appId "zyedidia.micro" -alias "micro" -update:$updateFlag },
+        { InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd" -update:$updateFlag },
+        { InstallWithWinget -appId "sharkdp.bat" -alias "bat" -update:$updateFlag },
+        { InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch" -update:$updateFlag },
+        { InstallWithWinget -appId "junegunn.fzf" -alias "fzf" -update:$updateFlag },
+        { InstallWithWinget -appId "sharkdp.fd" -alias "fd" -update:$updateFlag },
+        { InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag },
+        { InstallWithWinget -appId "jqlang.jq" -alias "jq" -update:$updateFlag },
+        { InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag },
+        { InstallWithWinget -appId "BurntSushi.ripgrep.MSVC" -alias "rg" -update:$updateFlag },
+        { InstallWithWinget -appId "jdx.mise" -alias "mise" -update:$updateFlag }
     )
 
     foreach ($install in $installs) {
-        $install
+        & $install
     }
 
     RefreshPath
+    ## Install mise cli tools
+    mise use -g starship@latest
 
     # Install must-have modules
     $modules = @(
