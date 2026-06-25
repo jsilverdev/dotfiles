@@ -201,7 +201,9 @@ function InstallOptionalApps {
     Write-Host "-----------------------------------" -ForegroundColor Cyan
     Write-Host "         Choose to Install"
     Write-Host "-----------------------------------" -ForegroundColor Cyan
-    $optionalApps | ForEach-Object -Begin { $i = 1 } -Process { "$i. Install $($_.name)"; $i++ }
+    for ($i = 0; $i -lt $optionalApps.Count; $i++) {
+        Write-Host ("{0}. Install {1}" -f ($i + 1), $optionalApps[$i].name)
+    }
     Write-Host "-----------------------------------" -ForegroundColor Cyan
     Write-Host "You can use ranges like 1-4 or individual numbers separated by commas" -ForegroundColor Yellow
 
