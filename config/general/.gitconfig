@@ -10,7 +10,7 @@
 	defaultBranch = main
 [core]
 	longpaths = true
-	editor = code --wait
+	editor = micro
 	pager = delta
 	autocrlf = false
 	sshCommand = ssh -i ~/.ssh/jsilverdev.pub
