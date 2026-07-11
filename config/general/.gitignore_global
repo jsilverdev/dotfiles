@@ -22,6 +22,10 @@ Syncthing/
 Syncthing*/
 OneDrive/
 OneDrive*/
+Application Data/
+Saved Games/
+Local Settings/
+Recent/
 
 # node
 .nvm
@@ -41,6 +45,7 @@ OneDrive*/
 Android
 .gradle
 .m2/
+AnypointCodeBuilder
 
 # Dart & Flutter
 .dart
