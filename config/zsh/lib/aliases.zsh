@@ -22,7 +22,7 @@ alias cg='cd `git rev-parse --show-toplevel`' # Base of git project
 alias ls="ls --color=auto -p"
 
 # lsd
-if [ -x "$(command -v lsd)" ];
+if command -v lsd >/dev/null 2>&1;
 then
     alias ll="lsd -lAFh"
     alias lb="lsd -lhSA" # List all files sorted by biggest
@@ -31,6 +31,11 @@ else
     alias ll="ls -lAFh" # List all files, with full details
     alias lb="ls -lhSA" # List all files sorted by biggest
     alias lm="ls -tA -1" # List files sorted by last modified
+fi
+
+# batcat as bat
+if command -v batcat >/dev/null 2>&1; then
+    alias bat="batcat"
 fi
 
 # Fix .zhistory
