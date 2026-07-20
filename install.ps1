@@ -79,6 +79,27 @@ function GetPythonFromMise {
     }
 }
 
+function InitializeCodexDefaults {
+    param([string]$BaseDir)
+
+    $codexDir = Join-Path $env:USERPROFILE ".codex"
+    $defaults = @(
+        @{ Source = Join-Path $BaseDir "config\codex\config.toml.example"; Destination = Join-Path $codexDir "config.toml" },
+        @{ Source = Join-Path $BaseDir "config\codex\rules\default.rules.example"; Destination = Join-Path $codexDir "rules\default.rules" }
+    )
+
+    foreach ($default in $defaults) {
+        if (Test-Path -LiteralPath $default.Destination) {
+            Write-Host "Codex local configuration already exists: $($default.Destination)" -ForegroundColor Yellow
+            continue
+        }
+
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $default.Destination) | Out-Null
+        Copy-Item -LiteralPath $default.Source -Destination $default.Destination
+        Write-Host "Created Codex local configuration: $($default.Destination)" -ForegroundColor Green
+    }
+}
+
 $updateFlag = $false
 function InstallMustHaveApps {
     ### Start Installing must-have apps
@@ -167,9 +188,12 @@ function SetupDotFiles {
     $META_DIR = "meta"
     $CONFIG_DIR = "configs"
 
+    InitializeCodexDefaults -BaseDir $BASEDIR
+
     &$PYTHON $DOTBOT_FULL_PATH_BIN -d $BASEDIR -c "${META_DIR}/${BASE_CONFIG}${CONFIG_SUFFIX}"
 
     $CONFIGS = @(
+        "codex",
         "pwsh",
         "windows"
     )

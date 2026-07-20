@@ -1,0 +1,26 @@
+# Initial personal Codex defaults shared across machines.
+
+model_reasoning_effort = "medium"
+
+[windows]
+sandbox = "unelevated"
+
+[features]
+multi_agent = true
+memories = true
+
+[tui]
+notifications = true
+notification_condition = "always"
+notification_method = "auto"
+session_picker_view = "dense"
+status_line = ["model-with-reasoning", "project-name", "git-branch", "five-hour-limit", "weekly-limit", "context-used", "task-progress"]
+status_line_use_colors = true
+theme = "monokai-extended-origin"
+pet = "disabled"
+
+[notice]
+fast_default_opt_out = true
+
+[plugins."github@openai-curated"]
+enabled = true

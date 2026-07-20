@@ -1,0 +1,10 @@
+- link:
+    ~/.codex/AGENTS.md:
+      path: config/codex/AGENTS.md
+      force: true
+      create: true
+    ~/.codex/skills/:
+      glob: true
+      path: config/codex/skills/**
+      force: true
+      create: true
