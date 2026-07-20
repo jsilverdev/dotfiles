@@ -363,9 +363,29 @@ function setup_dot_files () {
     META_DIR="meta"
     CONFIG_DIR="configs"
 
+    CODEX_DIR="$HOME/.codex"
+    CODEX_CONFIG="$CODEX_DIR/config.toml"
+    CODEX_RULES="$CODEX_DIR/rules/default.rules"
+
+    if [ ! -e "$CODEX_CONFIG" ]; then
+        mkdir -p "$CODEX_DIR"
+        cp "$DOTFILES_DIR/config/codex/config.toml.example" "$CODEX_CONFIG"
+        echo -e "${GREEN}Created Codex local configuration: $CODEX_CONFIG${RESET}"
+    else
+        echo -e "${YELLOW}Codex local configuration already exists: $CODEX_CONFIG${RESET}"
+    fi
+
+    if [ ! -e "$CODEX_RULES" ]; then
+        mkdir -p "$CODEX_DIR/rules"
+        cp "$DOTFILES_DIR/config/codex/rules/default.rules.example" "$CODEX_RULES"
+        echo -e "${GREEN}Created Codex local configuration: $CODEX_RULES${RESET}"
+    else
+        echo -e "${YELLOW}Codex local configuration already exists: $CODEX_RULES${RESET}"
+    fi
+
     $DOTBOT_FULL_PATH_BIN -d "$DOTFILES_DIR" -c "${META_DIR}/${BASE_CONFIG}${CONFIG_SUFFIX}"
 
-    CONFIGS="zsh"
+    CONFIGS="codex zsh"
 
     for config in $CONFIGS; do
         $DOTBOT_FULL_PATH_BIN -d "$DOTFILES_DIR" -c "${META_DIR}/${CONFIG_DIR}/${config}${CONFIG_SUFFIX}"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Mule MUnit"
+  short_description: "Run Mule MUnit suites and individual tests reliably."
+  default_prompt: "Help me run or debug specific Mule MUnit tests."
