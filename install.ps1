@@ -1,3 +1,9 @@
+[CmdletBinding()]
+param(
+    [Alias("u")]
+    [switch]$Update
+)
+
 ### Start Utils
 function RefreshPath() {
     $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
@@ -42,7 +48,7 @@ function InstallWithWinget() {
     param(
         [string]$appId,
         [string]$alias,
-        [switch]$update
+        [switch]$Update
     )
 
     if (-not ([string]::IsNullOrEmpty($alias))) {
@@ -56,7 +62,7 @@ function InstallWithWinget() {
         Write-Host "$appId is not installed. Installing..." -ForegroundColor Yellow
         winget install -e --accept-source-agreements --accept-package-agreements --id $appId
     }
-    elseif ($update) {
+    elseif ($Update) {
         Write-Host "Updating $appId..." -ForegroundColor Yellow
         winget upgrade --accept-source-agreements --id $appId
     }
@@ -100,31 +106,24 @@ function InitializeCodexDefaults {
     }
 }
 
-$updateFlag = $false
 function InstallMustHaveApps {
     ### Start Installing must-have apps
     Write-Host "Installing must-have apps..." -ForegroundColor Cyan
 
-    # Pregunta si deseas actualizar las aplicaciones existentes
-    $updateChoice = Read-Host "Do you want to update existing apps? (Y/N)"
-    if ($updateChoice -match "^[Yy]$") {
-        $updateFlag = $true
-    }
-
     $installs = @(
-        { InstallWithWinget -appId "7zip.7zip" -update:$updateFlag },
-        { InstallWithWinget -appId "Microsoft.PowerToys" -update:$updateFlag },
-        { InstallWithWinget -appId "zyedidia.micro" -alias "micro" -update:$updateFlag },
-        { InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd" -update:$updateFlag },
-        { InstallWithWinget -appId "sharkdp.bat" -alias "bat" -update:$updateFlag },
-        { InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch" -update:$updateFlag },
-        { InstallWithWinget -appId "junegunn.fzf" -alias "fzf" -update:$updateFlag },
-        { InstallWithWinget -appId "sharkdp.fd" -alias "fd" -update:$updateFlag },
-        { InstallWithWinget -appId "dandavison.delta" -alias "delta" -update:$updateFlag },
-        { InstallWithWinget -appId "jqlang.jq" -alias "jq" -update:$updateFlag },
-        { InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -update:$updateFlag },
-        { InstallWithWinget -appId "BurntSushi.ripgrep.MSVC" -alias "rg" -update:$updateFlag },
-        { InstallWithWinget -appId "jdx.mise" -alias "mise" -update:$updateFlag }
+        { InstallWithWinget -appId "7zip.7zip" -Update:$Update },
+        { InstallWithWinget -appId "Microsoft.PowerToys" -Update:$Update },
+        { InstallWithWinget -appId "zyedidia.micro" -alias "micro" -Update:$Update },
+        { InstallWithWinget -appId "lsd-rs.lsd" -alias "lsd" -Update:$Update },
+        { InstallWithWinget -appId "sharkdp.bat" -alias "bat" -Update:$Update },
+        { InstallWithWinget -appId "Fastfetch-cli.Fastfetch" -alias "fastfetch" -Update:$Update },
+        { InstallWithWinget -appId "junegunn.fzf" -alias "fzf" -Update:$Update },
+        { InstallWithWinget -appId "sharkdp.fd" -alias "fd" -Update:$Update },
+        { InstallWithWinget -appId "dandavison.delta" -alias "delta" -Update:$Update },
+        { InstallWithWinget -appId "jqlang.jq" -alias "jq" -Update:$Update },
+        { InstallWithWinget -appId "Microsoft.VisualStudioCode" -alias "code" -Update:$Update },
+        { InstallWithWinget -appId "BurntSushi.ripgrep.MSVC" -alias "rg" -Update:$Update },
+        { InstallWithWinget -appId "jdx.mise" -alias "mise" -Update:$Update }
     )
 
     foreach ($install in $installs) {
@@ -144,7 +143,7 @@ function InstallMustHaveApps {
         if (Get-InstalledPSResource -Name $module -ErrorAction SilentlyContinue) {
             Write-Host "$module module is already installed" -ForegroundColor Green
 
-            if ($updateFlag) {
+            if ($Update) {
                 Write-Host "Updating $module module..." -ForegroundColor Yellow
                 Update-PSResource -Name $module -Scope CurrentUser -Force
             }
@@ -208,17 +207,17 @@ function InstallOptionalApps {
     ### Start Installing optional apps
 
     $optionalApps = @(
-        @{ name = "Google Chrome" ; install = { InstallWithWinget -appId "Google.Chrome" -update:$updateFlag } },
-        @{ name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -update:$updateFlag } },
-        @{ name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -update:$updateFlag } },
-        @{ name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -update:$updateFlag } },
-        @{ name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" -update:$updateFlag } },
-        @{ name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" -update:$updateFlag } },
-        @{ name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -update:$updateFlag } },
-        @{ name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -update:$updateFlag } },
-        @{ name = "Steam" ; install = { InstallWithWinget -appId "Valve.Steam" -update:$updateFlag } },
-        @{ name = "Discord" ; install = { InstallWithWinget -appId "Discord.Discord" -update:$updateFlag } },
-        @{ name = "npiperelay" ; install = { InstallWithWinget -appId "albertony.npiperelay" -alias "npiperelay" -update:$updateFlag } }
+        @{ name = "Google Chrome" ; install = { InstallWithWinget -appId "Google.Chrome" -Update:$Update } },
+        @{ name = "KeepassXC" ; install = { InstallWithWinget -appId "KeePassXCTeam.KeePassXC" -Update:$Update } },
+        @{ name = "DBeaver"; install = { InstallWithWinget -appId "dbeaver.dbeaver" -Update:$Update } },
+        @{ name = "Postman"; install = { InstallWithWinget -appId "Postman.Postman" -Update:$Update } },
+        @{ name = "Bruno"; install = { InstallWithWinget -appId "Bruno.Bruno" -Update:$Update } },
+        @{ name = "kubectl"; install = { InstallWithWinget -appId "Kubernetes.kubectl" -alias "kubectl" -Update:$Update } },
+        @{ name = "GIMP"; install = { InstallWithWinget -appId "GIMP.GIMP" -Update:$Update } },
+        @{ name = "Android Studio"; install = { InstallWithWinget -appId "Google.AndroidStudio" -Update:$Update } },
+        @{ name = "Steam" ; install = { InstallWithWinget -appId "Valve.Steam" -Update:$Update } },
+        @{ name = "Discord" ; install = { InstallWithWinget -appId "Discord.Discord" -Update:$Update } },
+        @{ name = "npiperelay" ; install = { InstallWithWinget -appId "albertony.npiperelay" -alias "npiperelay" -Update:$Update } }
     )
 
     Write-Host "             Optionals"

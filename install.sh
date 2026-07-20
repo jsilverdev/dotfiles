@@ -11,7 +11,7 @@ RESET='\033[0m'
 
 SRC_DIR=$(dirname "${0}")
 DOTFILES_DIR="${DOTFILES_DIR:-${SRC_DIR:-$HOME/.dotfiles}}"
-UPDATE_PACKAGES="${UPDATE_PACKAGES:-false}"
+UPDATE=false
 
 function usage () {
     echo "Usage: $0 [--update|-u]"
@@ -25,7 +25,7 @@ function parse_args () {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             -u|--update)
-                UPDATE_PACKAGES=true
+                UPDATE=true
                 ;;
             -h|--help)
                 usage
@@ -42,7 +42,7 @@ function parse_args () {
 }
 
 function updates_enabled () {
-    case "${UPDATE_PACKAGES}" in
+    case "${UPDATE}" in
         1|true|TRUE|yes|YES|y|Y) return 0 ;;
         *) return 1 ;;
     esac

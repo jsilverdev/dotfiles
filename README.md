@@ -12,12 +12,24 @@ To set up your environment on Windows, run the following command in PowerShell:
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets-go.ps1" -OutFile ".\lets-go.ps1"; Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned; .\lets-go.ps1
 ```
 
+To update installed applications and PowerShell modules:
+
+```powershell
+.\install.ps1 -Update # or -u
+```
+
 ### 🐧 Linux
 
 To set up your environment on Linux, use this command:
 
 ```bash
 bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets-go.sh)
+```
+
+To refresh existing packages, pass `--update` (or `-u`):
+
+```bash
+./install.sh --update
 ```
 
 ## Requirements
