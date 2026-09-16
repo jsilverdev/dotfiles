@@ -1,6 +1,6 @@
 {
     "firstWindowPreference": "defaultProfile",
-    "windowingBehavior": "useExisting",
+    "windowingBehavior": "useAnyExisting",
     "centerOnLaunch": true,
     "profiles": {
         "defaults": {
