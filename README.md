@@ -9,7 +9,7 @@ Welcome to my dotfiles! This repository contains configurations and scripts to q
 To set up your environment on Windows, run the following command in PowerShell:
 
 ```powershell
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets-go.ps1" -OutFile ".\lets-go.ps1"; Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned; .\lets-go.ps1
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jsilverdev/dotfiles/main/lets-go.ps1" -OutFile ".\lets-go.ps1"; Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned; .\lets-go.ps1
 ```
 
 To update installed applications and PowerShell modules:
@@ -23,7 +23,7 @@ To update installed applications and PowerShell modules:
 To set up your environment on Linux, use this command:
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/master/lets-go.sh)
+bash <(curl -s https://raw.githubusercontent.com/jsilverdev/dotfiles/main/lets-go.sh)
 ```
 
 To refresh existing packages, pass `--update` (or `-u`):
