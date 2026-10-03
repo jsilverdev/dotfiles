@@ -141,8 +141,7 @@ jobs:
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
           chown -R dotfilesci:dotfilesci "$remote_dir"
-          sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          sudo -u dotfilesci -H git config --global --add safe.directory "$remote_dir"
+          sudo -u dotfilesci -H env HOME=/home/dotfilesci git config --global --add safe.directory '*'
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
@@ -210,8 +209,7 @@ jobs:
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
           chown -R dotfilesci:dotfilesci "$remote_dir"
-          sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          sudo -u dotfilesci -H git config --global --add safe.directory "$remote_dir"
+          sudo -u dotfilesci -H env HOME=/home/dotfilesci git config --global --add safe.directory '*'
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
@@ -305,7 +303,8 @@ jobs:
           New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
           Push-Location $runDirectory
           try {
-            & cmd.exe /d /c "`"$env:GITHUB_WORKSPACE\bootstrap.cmd`"
+            $bootstrap = Join-Path $env:GITHUB_WORKSPACE 'bootstrap.cmd'
+            & cmd.exe /d /c $bootstrap
             if ($LASTEXITCODE -ne 0) {
               $source = (& chezmoi.exe source-path).Trim()
               $rendered = Join-Path $env:RUNNER_TEMP 'rendered-deploy-pwsh.cmd'
@@ -401,7 +400,7 @@ jobs:
 
       - name: Reject an unsigned script under AllSigned
         shell: cmd
-        run: >-
+        run: |
           pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1';
           Set-Content -LiteralPath $p -Value 'Write-Output unsigned';
           & pwsh.exe -NoProfile -File $p;
