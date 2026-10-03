@@ -447,6 +447,12 @@ jobs:
       - name: Enable and prove CurrentUser AllSigned
         shell: pwsh
         run: |
+          $smoke = Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'
+          @'
+          param([string]$Value)
+          if ($Value -ne 'bridge-ok') { throw "unexpected bridge value: $Value" }
+          '@ | Set-Content -LiteralPath $smoke
+
           Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
           $currentUser = Get-ExecutionPolicy -Scope CurrentUser
           $effective = Get-ExecutionPolicy
@@ -455,15 +461,11 @@ jobs:
           if ($currentUser -ne 'AllSigned' -or $effective -ne 'AllSigned') {
             throw "unable to establish effective CurrentUser AllSigned: CurrentUser=$currentUser Effective=$effective"
           }
-          # Make the policy deterministic for child pwsh.exe processes spawned from later CMD steps.
-          Add-Content -Path $env:GITHUB_ENV -Value 'PSExecutionPolicyPreference=AllSigned'
 
-      - name: Reject an unsigned script under AllSigned
+      - name: Smoke-test signing bridge under AllSigned
         shell: cmd
         run: |
-          pwsh.exe -NoProfile -Command "$policy = Get-ExecutionPolicy; Write-Output ('Effective execution policy: ' + $policy); if ($policy -ne 'AllSigned') { exit 1 }"
-          if errorlevel 1 exit /b 1
-          pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1'; $marker = Join-Path $env:RUNNER_TEMP 'unsigned-test-ran.txt'; Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue; Set-Content -LiteralPath $p -Value ('Set-Content -LiteralPath ''' + $marker.Replace('''','''''') + ''' -Value ran'); & pwsh.exe -NoProfile -File $p *> $null; $code = $LASTEXITCODE; Remove-Item -LiteralPath $p -Force; $ran = Test-Path -LiteralPath $marker; Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue; Write-Output ('Unsigned script exit code: ' + $code + '; marker created: ' + $ran); if ($ran) { exit 1 }; exit 0"
+          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
           if errorlevel 1 exit /b 1
 
       - name: Run the real bootstrap through CMD and the signing bridge

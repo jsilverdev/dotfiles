@@ -98,18 +98,12 @@ function Install-WithWinget {
 
 function Install-MustHaveApps {
     Write-Host "Installing must-have apps..." -ForegroundColor Cyan
-    $packageUpdate = $Update -and -not $CoreOnly
-    $installs = if ($CoreOnly) {
-        @(
-            { Install-WithWinget -AppId "junegunn.fzf" -Alias "fzf" -Update:$packageUpdate },
-            { Install-WithWinget -AppId "sharkdp.fd" -Alias "fd" -Update:$packageUpdate },
-            { Install-WithWinget -AppId "lsd-rs.lsd" -Alias "lsd" -Update:$packageUpdate },
-            { Install-WithWinget -AppId "sharkdp.bat" -Alias "bat" -Update:$packageUpdate },
-            { Install-WithWinget -AppId "jdx.mise" -Alias "mise" -Update:$packageUpdate }
-        )
+
+    if ($CoreOnly) {
+        Write-Host "Skipping workstation WinGet catalog and starship setup in core-only mode." -ForegroundColor Yellow
     }
     else {
-        @(
+        $installs = @(
             { Install-WithWinget -AppId "7zip.7zip" -Update:$Update },
             { Install-WithWinget -AppId "Microsoft.PowerToys" -Update:$Update },
             { Install-WithWinget -AppId "zyedidia.micro" -Alias "micro" -Update:$Update },
@@ -124,13 +118,13 @@ function Install-MustHaveApps {
             { Install-WithWinget -AppId "BurntSushi.ripgrep.MSVC" -Alias "rg" -Update:$Update },
             { Install-WithWinget -AppId "jdx.mise" -Alias "mise" -Update:$Update }
         )
-    }
-    foreach ($install in $installs) { & $install }
+        foreach ($install in $installs) { & $install }
 
-    Refresh-Path
-    if (Get-Command mise -ErrorAction SilentlyContinue) {
-        & mise use -g starship@latest
-        if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
+        Refresh-Path
+        if (Get-Command mise -ErrorAction SilentlyContinue) {
+            & mise use -g starship@latest
+            if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
+        }
     }
 
     foreach ($module in $ManagedModules) {
