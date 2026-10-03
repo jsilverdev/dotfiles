@@ -453,6 +453,26 @@ jobs:
           if ($Value -ne 'bridge-ok') { throw "unexpected bridge value: $Value" }
           '@ | Set-Content -LiteralPath $smoke
 
+          $subject = 'CN=jsilverdev Dotfiles Code Signing'
+          $certificate = Get-ChildItem Cert:\CurrentUser\My |
+            Where-Object { $_.Subject -eq $subject -and $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date) } |
+            Sort-Object NotAfter -Descending |
+            Select-Object -First 1
+          if ($null -eq $certificate) {
+            $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(10) -HashAlgorithm SHA256
+          }
+          foreach ($storeName in @('Root', 'TrustedPublisher')) {
+            $store = [Security.Cryptography.X509Certificates.X509Store]::new($storeName, 'CurrentUser')
+            try {
+              $store.Open([Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+              if (-not @($store.Certificates | Where-Object Thumbprint -eq $certificate.Thumbprint)) {
+                $store.Add($certificate)
+              }
+            }
+            finally { $store.Dispose() }
+          }
+          Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Value $certificate.Thumbprint -NoNewline
+
           Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
           $currentUser = Get-ExecutionPolicy -Scope CurrentUser
           $effective = Get-ExecutionPolicy

@@ -27,7 +27,10 @@ $ManagedModules = @(Get-Content -LiteralPath $managedModulesPath | Where-Object 
 function Refresh-Path {
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    $env:Path = @($machinePath, $userPath) -join ";"
+    $env:Path = @($env:Path, $machinePath, $userPath) |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique |
+        Join-String -Separator ";"
 }
 
 function Check-RequiredApps {
