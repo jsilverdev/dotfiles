@@ -191,7 +191,7 @@ jobs:
               git -C "$update_clone" config user.email ci@example.invalid
               printf "\n%s\n" "$UPDATE_MARKER" >> "$update_clone/home/dot_fdignore"
               git -C "$update_clone" add home/dot_fdignore
-              git -C "$update_clone" commit -m "CI update fixture"
+              git -c commit.gpgsign=false -C "$update_clone" commit -m "CI update fixture"
               git -C "$update_clone" push origin HEAD:refs/heads/main
             '
 
@@ -267,7 +267,7 @@ jobs:
               git -C "$update_clone" config user.email ci@example.invalid
               printf "\n%s\n" "$UPDATE_MARKER" >> "$update_clone/home/dot_fdignore"
               git -C "$update_clone" add home/dot_fdignore
-              git -C "$update_clone" commit -m "CI update fixture"
+              git -c commit.gpgsign=false -C "$update_clone" commit -m "CI update fixture"
               git -C "$update_clone" push origin HEAD:refs/heads/main
             '
 
@@ -334,6 +334,17 @@ jobs:
           Get-ExecutionPolicy -List | Format-Table -AutoSize
           if ((Get-ExecutionPolicy) -eq 'AllSigned') { throw 'normal Windows job unexpectedly has AllSigned effective' }
 
+      - name: Smoke-test PowerShell bridge under normal policy
+        shell: pwsh
+        run: |
+          $smoke = Join-Path $env:RUNNER_TEMP 'bridge-smoke.ps1'
+          @'
+          param([string]$Value)
+          if ($Value -ne 'bridge-ok') { throw "unexpected bridge value: $Value" }
+          '@ | Set-Content -LiteralPath $smoke
+          & "$env:GITHUB_WORKSPACE\scripts\windows\invoke-ps-script.cmd" $smoke -Value bridge-ok
+          if ($LASTEXITCODE -ne 0) { throw "PowerShell bridge smoke test failed with exit code $LASTEXITCODE" }
+
       - name: Run Windows bootstrap in a temporary directory
         shell: pwsh
         env:
@@ -370,7 +381,7 @@ jobs:
           $marker = "ci-update-marker-$env:GITHUB_RUN_ID"
           Add-Content -Path (Join-Path $updateClone 'home\dot_fdignore') -Value $marker
           git -C $updateClone add home/dot_fdignore
-          git -C $updateClone commit -m 'CI update fixture'
+          git -c commit.gpgsign=false -C $updateClone commit -m 'CI update fixture'
           git -C $updateClone push origin HEAD:refs/heads/main
           if ($LASTEXITCODE -ne 0) { throw 'unable to push Windows update fixture' }
 
@@ -444,13 +455,15 @@ jobs:
           if ($currentUser -ne 'AllSigned' -or $effective -ne 'AllSigned') {
             throw "unable to establish effective CurrentUser AllSigned: CurrentUser=$currentUser Effective=$effective"
           }
+          # Make the policy deterministic for child pwsh.exe processes spawned from later CMD steps.
+          Add-Content -Path $env:GITHUB_ENV -Value 'PSExecutionPolicyPreference=AllSigned'
 
       - name: Reject an unsigned script under AllSigned
         shell: cmd
         run: |
           pwsh.exe -NoProfile -Command "$policy = Get-ExecutionPolicy; Write-Output ('Effective execution policy: ' + $policy); if ($policy -ne 'AllSigned') { exit 1 }"
           if errorlevel 1 exit /b 1
-          pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1'; Set-Content -LiteralPath $p -Value 'Write-Output unsigned'; & pwsh.exe -NoProfile -File $p; $code = $LASTEXITCODE; Remove-Item -LiteralPath $p -Force; Write-Output ('Unsigned script exit code: ' + $code); if ($code -eq 0) { exit 1 }"
+          pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1'; $marker = Join-Path $env:RUNNER_TEMP 'unsigned-test-ran.txt'; Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue; Set-Content -LiteralPath $p -Value ('Set-Content -LiteralPath ''' + $marker.Replace('''','''''') + ''' -Value ran'); & pwsh.exe -NoProfile -File $p *> $null; $code = $LASTEXITCODE; Remove-Item -LiteralPath $p -Force; $ran = Test-Path -LiteralPath $marker; Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue; Write-Output ('Unsigned script exit code: ' + $code + '; marker created: ' + $ran); if ($ran) { exit 1 }; exit 0"
           if errorlevel 1 exit /b 1
 
       - name: Run the real bootstrap through CMD and the signing bridge
@@ -483,7 +496,7 @@ jobs:
           set "UPDATE_MARKER=ci-update-marker-%GITHUB_RUN_ID%"
           >>"%UPDATE_CLONE%\home\dot_fdignore" echo %UPDATE_MARKER%
           git -C "%UPDATE_CLONE%" add home/dot_fdignore
-          git -C "%UPDATE_CLONE%" commit -m "CI update fixture"
+          git -c commit.gpgsign=false -C "%UPDATE_CLONE%" commit -m "CI update fixture"
           git -C "%UPDATE_CLONE%" push origin HEAD:refs/heads/main
           if errorlevel 1 exit /b 1
           echo UPDATE_MARKER=%UPDATE_MARKER%>>"%GITHUB_ENV%"
