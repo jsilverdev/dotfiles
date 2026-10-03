@@ -140,7 +140,7 @@ jobs:
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
-          chown -R dotfilesci:dotfilesci "$remote_dir"
+          chown -R dotfilesci:dotfilesci "$remote_parent"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci git config --global --add safe.directory '*'
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
@@ -208,7 +208,7 @@ jobs:
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
-          chown -R dotfilesci:dotfilesci "$remote_dir"
+          chown -R dotfilesci:dotfilesci "$remote_parent"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci git config --global --add safe.directory '*'
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
@@ -308,7 +308,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) {
               $source = (& chezmoi.exe source-path).Trim()
               $rendered = Join-Path $env:RUNNER_TEMP 'rendered-deploy-pwsh.cmd'
-              Get-Content -Raw (Join-Path $source 'home\.chezmoiscripts\run_after_90-deploy-pwsh.cmd.tmpl') | chezmoi.exe execute-template | Set-Content -LiteralPath $rendered
+              Get-Content -Raw (Join-Path $source '.chezmoiscripts\run_after_90-deploy-pwsh.cmd.tmpl') | chezmoi.exe execute-template | Set-Content -LiteralPath $rendered
               Write-Host 'Rendered post-apply deployment script after bootstrap failure:'
               Get-Content -LiteralPath $rendered
               exit 1
@@ -401,12 +401,7 @@ jobs:
       - name: Reject an unsigned script under AllSigned
         shell: cmd
         run: |
-          pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1';
-          Set-Content -LiteralPath $p -Value 'Write-Output unsigned';
-          & pwsh.exe -NoProfile -File $p;
-          $code = $LASTEXITCODE;
-          Remove-Item -LiteralPath $p -Force;
-          if ($code -eq 0) { exit 1 }"
+          pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1'; Set-Content -LiteralPath $p -Value 'Write-Output unsigned'; & pwsh.exe -NoProfile -File $p; $code = $LASTEXITCODE; Remove-Item -LiteralPath $p -Force; if ($code -eq 0) { exit 1 }"
           if errorlevel 1 exit /b 1
           powershell.exe -NoProfile -Command "$policy = Get-ExecutionPolicy; Write-Output ('Effective execution policy: ' + $policy); if ($policy -ne 'AllSigned') { exit 1 }"
           if errorlevel 1 exit /b 1
