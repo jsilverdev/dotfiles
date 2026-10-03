@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_URL="${DOTFILES_REPO:-https://github.com/jsilverdev/dotfiles.git}"
 export PATH="$HOME/.local/bin:$PATH"
+DISTRO=""
 
 remove_legacy_links() {
     local path target
@@ -47,10 +48,12 @@ configure_local_chezmoi_source() {
 }
 
 if [[ -f /etc/debian_version ]] && command -v apt-get >/dev/null 2>&1; then
+    DISTRO="debian"
     sudo apt-get update
     sudo apt-get install --yes git curl wget zsh
 elif [[ -f /etc/arch-release ]] && command -v pacman >/dev/null 2>&1; then
-    sudo pacman -Syu --noconfirm --needed git curl wget zsh
+    DISTRO="arch"
+    sudo pacman -Syu --noconfirm --needed git curl wget zsh chezmoi
 else
     printf 'Unsupported Linux distribution. Debian and Arch Linux are supported.\n' >&2
     exit 1
@@ -61,7 +64,7 @@ command -v curl >/dev/null 2>&1 || { printf 'curl is required but unavailable.\n
 command -v wget >/dev/null 2>&1 || { printf 'wget is required but unavailable.\n' >&2; exit 1; }
 command -v zsh >/dev/null 2>&1 || { printf 'zsh is required but unavailable.\n' >&2; exit 1; }
 
-if ! command -v chezmoi >/dev/null 2>&1; then
+if [[ "$DISTRO" == "debian" ]] && ! command -v chezmoi >/dev/null 2>&1; then
     mkdir -p "$HOME/.local/bin"
     sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
 fi
