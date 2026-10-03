@@ -140,6 +140,7 @@ jobs:
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
+          chown -R dotfilesci:dotfilesci "$remote_dir"
           sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
           sudo -u dotfilesci -H git config --global --add safe.directory "$remote_dir"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
@@ -208,6 +209,7 @@ jobs:
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
+          chown -R dotfilesci:dotfilesci "$remote_dir"
           sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
           sudo -u dotfilesci -H git config --global --add safe.directory "$remote_dir"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
@@ -302,7 +304,17 @@ jobs:
           $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
           New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
           Push-Location $runDirectory
-          try { & cmd.exe /d /c "`"$env:GITHUB_WORKSPACE\bootstrap.cmd`""; if ($LASTEXITCODE -ne 0) { exit 1 } }
+          try {
+            & cmd.exe /d /c "`"$env:GITHUB_WORKSPACE\bootstrap.cmd`"
+            if ($LASTEXITCODE -ne 0) {
+              $source = (& chezmoi.exe source-path).Trim()
+              $rendered = Join-Path $env:RUNNER_TEMP 'rendered-deploy-pwsh.cmd'
+              Get-Content -Raw (Join-Path $source 'home\.chezmoiscripts\run_after_90-deploy-pwsh.cmd.tmpl') | chezmoi.exe execute-template | Set-Content -LiteralPath $rendered
+              Write-Host 'Rendered post-apply deployment script after bootstrap failure:'
+              Get-Content -LiteralPath $rendered
+              exit 1
+            }
+          }
           finally { Pop-Location }
 
       - name: Assert Windows normal-policy state
@@ -395,8 +407,10 @@ jobs:
           & pwsh.exe -NoProfile -File $p;
           $code = $LASTEXITCODE;
           Remove-Item -LiteralPath $p -Force;
-          $policy = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell').GetValue('ExecutionPolicy', '');
-          if ($policy -ne 'AllSigned' -or $code -eq 0) { exit 1 }"
+          if ($code -eq 0) { exit 1 }"
+          if errorlevel 1 exit /b 1
+          powershell.exe -NoProfile -Command "$policy = Get-ExecutionPolicy; Write-Output ('Effective execution policy: ' + $policy); if ($policy -ne 'AllSigned') { exit 1 }"
+          if errorlevel 1 exit /b 1
 
       - name: Run the real bootstrap through CMD and the signing bridge
         shell: cmd
