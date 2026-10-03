@@ -27,7 +27,7 @@ jobs:
       - name: Install static-validation tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends ruby shellcheck
+          sudo apt-get install --yes --no-install-recommends python3 ruby shellcheck
           mkdir -p "$RUNNER_TEMP/bin"
           curl -fsLS https://get.chezmoi.io | sh -s -- -b "$RUNNER_TEMP/bin"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
@@ -46,6 +46,7 @@ jobs:
           test "$(tr -d '\r\n' < .chezmoiroot)" = home
           test -d home
           test -f scripts/windows/invoke-ps-script.cmd
+          test -f scripts/windows/invoke-ps-script-bridge.ps1
           test -f scripts/windows/signing.ps1
           test -f scripts/windows/deploy-pwsh.ps1
           test -f scripts/windows/managed-modules.txt
@@ -67,10 +68,36 @@ jobs:
             echo 'production execution-policy weakening found' >&2
             exit 1
           fi
+          if git grep -n -E 'PowerShellCore\\ShellIds|Software\\Microsoft\\PowerShell\\1\\ShellIds' -- '*.ps1' '*.psm1' '*.cmd'; then
+            echo 'implementation-specific PowerShell execution-policy registry probing found' >&2
+            exit 1
+          fi
           if git grep -n '^# SIG # Begin signature block' -- '*.ps1' '*.psm1'; then
             echo 'signed PowerShell source was committed' >&2
             exit 1
           fi
+
+      - name: Validate encoded PowerShell bridge source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import pathlib
+          import re
+
+          cmd = pathlib.Path('scripts/windows/invoke-ps-script.cmd').read_text(encoding='utf-8')
+          source = pathlib.Path('scripts/windows/invoke-ps-script-bridge.ps1').read_text(encoding='utf-8')
+          match = re.search(r'(?m)^pwsh\.exe -NoProfile -EncodedCommand ([A-Za-z0-9+/=]+)\s*$', cmd)
+          if not match:
+              raise SystemExit('encoded bridge payload is missing')
+          decoded = base64.b64decode(match.group(1)).decode('utf-16le')
+          if decoded != source:
+              raise SystemExit('encoded bridge payload does not match invoke-ps-script-bridge.ps1')
+          if len(match.group(1)) >= 8000:
+              raise SystemExit('encoded bridge payload is too close to cmd.exe command-line limits')
+          print(f'bridge-source-ok: encoded length={len(match.group(1))}')
+          PY
 
       - name: Validate workflow YAML
         shell: bash
@@ -120,60 +147,62 @@ jobs:
 
       - name: Run Debian bootstrap as an unprivileged user
         shell: bash
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
         run: |
           set -euo pipefail
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_SHA"
+
           remote_parent="$(mktemp -d)"
           remote_dir="$remote_parent/dotfiles.git"
-          chmod 755 "$remote_parent"
           git init --bare "$remote_dir"
           git -C "$GITHUB_WORKSPACE" push "$remote_dir" "$GITHUB_SHA:refs/heads/main"
           git --git-dir="$remote_dir" symbolic-ref HEAD refs/heads/main
-          chmod -R a+rX "$remote_dir" "$GITHUB_WORKSPACE"
-          echo "DOTFILES_REPO=file://$remote_dir" >> "$GITHUB_ENV"
-          echo "DOTFILES_BARE=$remote_dir" >> "$GITHUB_ENV"
+          chmod -R a+rX "$GITHUB_WORKSPACE"
 
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
           chown -R dotfilesci:dotfilesci "$remote_parent"
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci git config --global --add safe.directory '*'
+          echo "DOTFILES_REPO=file://$remote_dir" >> "$GITHUB_ENV"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
             bash -lc 'cd /tmp; bash "$GITHUB_WORKSPACE/bootstrap.sh"'
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             PATH="/home/dotfilesci/.local/bin:$PATH" \
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" EXPECTED_COMMIT="$GITHUB_SHA" \
             bash -lc 'bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" debian "$EXPECTED_COMMIT"'
 
       - name: Exercise Debian update wrapper against the local remote
         shell: bash
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
         run: |
           set -euo pipefail
-          update_clone="$(mktemp -d)/dotfiles-update"
-          git clone "$DOTFILES_REPO" "$update_clone"
-          git -C "$update_clone" config user.name ci
-          git -C "$update_clone" config user.email ci@example.invalid
           marker="ci-update-marker-${GITHUB_RUN_ID}"
-          printf '\n%s\n' "$marker" >> "$update_clone/home/dot_fdignore"
-          git -C "$update_clone" add home/dot_fdignore
-          git -C "$update_clone" commit -m 'CI update fixture'
-          git -C "$update_clone" push origin HEAD:refs/heads/main
-          echo "UPDATE_MARKER=$marker" >> "$GITHUB_ENV"
+
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0='*' \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
-            bash -lc 'bash "$GITHUB_WORKSPACE/update.sh" --core-only'
+            DOTFILES_REPO="$DOTFILES_REPO" UPDATE_MARKER="$marker" \
+            bash -lc '
+              set -euo pipefail
+              update_parent="$(mktemp -d)"
+              update_clone="$update_parent/dotfiles-update"
+              git clone "$DOTFILES_REPO" "$update_clone"
+              git -C "$update_clone" config user.name ci
+              git -C "$update_clone" config user.email ci@example.invalid
+              printf "\n%s\n" "$UPDATE_MARKER" >> "$update_clone/home/dot_fdignore"
+              git -C "$update_clone" add home/dot_fdignore
+              git -C "$update_clone" commit -m "CI update fixture"
+              git -C "$update_clone" push origin HEAD:refs/heads/main
+            '
+
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             PATH="/home/dotfilesci/.local/bin:$PATH" \
+            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
+            bash -lc 'bash "$GITHUB_WORKSPACE/update.sh" --core-only'
+
+          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
+            PATH="/home/dotfilesci/.local/bin:$PATH" \
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" UPDATE_MARKER="$marker" \
             bash -lc 'grep -Fqx "$UPDATE_MARKER" "$HOME/.fdignore"; bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" debian'
 
@@ -198,25 +227,26 @@ jobs:
           set -euo pipefail
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_SHA"
+
           remote_parent="$(mktemp -d)"
           remote_dir="$remote_parent/dotfiles.git"
-          chmod 755 "$remote_parent"
           git init --bare "$remote_dir"
           git -C "$GITHUB_WORKSPACE" push "$remote_dir" "$GITHUB_SHA:refs/heads/main"
           git --git-dir="$remote_dir" symbolic-ref HEAD refs/heads/main
-          chmod -R a+rX "$remote_dir" "$GITHUB_WORKSPACE"
-          echo "DOTFILES_REPO=file://$remote_dir" >> "$GITHUB_ENV"
+          chmod -R a+rX "$GITHUB_WORKSPACE"
+
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
           chown -R dotfilesci:dotfilesci "$remote_parent"
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci git config --global --add safe.directory '*'
+          echo "DOTFILES_REPO=file://$remote_dir" >> "$GITHUB_ENV"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
             bash -lc 'cd /tmp; bash "$GITHUB_WORKSPACE/bootstrap.sh"'
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             PATH="/home/dotfilesci/.local/bin:$PATH" \
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" EXPECTED_COMMIT="$GITHUB_SHA" \
             bash -lc 'bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" arch "$EXPECTED_COMMIT"'
 
@@ -224,22 +254,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          update_clone="$(mktemp -d)/dotfiles-update"
-          git clone "$DOTFILES_REPO" "$update_clone"
-          git -C "$update_clone" config user.name ci
-          git -C "$update_clone" config user.email ci@example.invalid
           marker="ci-update-marker-${GITHUB_RUN_ID}"
-          printf '\n%s\n' "$marker" >> "$update_clone/home/dot_fdignore"
-          git -C "$update_clone" add home/dot_fdignore
-          git -C "$update_clone" commit -m 'CI update fixture'
-          git -C "$update_clone" push origin HEAD:refs/heads/main
+
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0='*' \
+            DOTFILES_REPO="$DOTFILES_REPO" UPDATE_MARKER="$marker" \
+            bash -lc '
+              set -euo pipefail
+              update_parent="$(mktemp -d)"
+              update_clone="$update_parent/dotfiles-update"
+              git clone "$DOTFILES_REPO" "$update_clone"
+              git -C "$update_clone" config user.name ci
+              git -C "$update_clone" config user.email ci@example.invalid
+              printf "\n%s\n" "$UPDATE_MARKER" >> "$update_clone/home/dot_fdignore"
+              git -C "$update_clone" add home/dot_fdignore
+              git -C "$update_clone" commit -m "CI update fixture"
+              git -C "$update_clone" push origin HEAD:refs/heads/main
+            '
+
+          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
+            PATH="/home/dotfilesci/.local/bin:$PATH" \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
             bash -lc 'bash "$GITHUB_WORKSPACE/update.sh" --core-only'
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci UPDATE_MARKER="$marker" \
+
+          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             PATH="/home/dotfilesci/.local/bin:$PATH" \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
+            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
+            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" UPDATE_MARKER="$marker" \
             bash -lc 'grep -Fqx "$UPDATE_MARKER" "$HOME/.fdignore"; bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" arch'
 
   windows:
@@ -283,10 +323,9 @@ jobs:
           git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
           if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
           git --git-dir=$remote show-ref --verify --quiet refs/heads/main
-          if ($LASTEXITCODE -ne 0) { throw "local bootstrap remote has no main ref" }
+          if ($LASTEXITCODE -ne 0) { throw 'local bootstrap remote has no main ref' }
           git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
-          Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REMOTE_PATH=$remote"
           Write-Host "Local bootstrap remote: $remoteUri"
 
       - name: Confirm normal execution policy
@@ -307,14 +346,7 @@ jobs:
           try {
             $bootstrap = Join-Path $env:GITHUB_WORKSPACE 'bootstrap.cmd'
             & cmd.exe /d /c $bootstrap
-            if ($LASTEXITCODE -ne 0) {
-              $source = (& chezmoi.exe source-path).Trim()
-              $rendered = Join-Path $env:RUNNER_TEMP 'rendered-deploy-pwsh.cmd'
-              Get-Content -Raw (Join-Path $source '.chezmoiscripts\run_after_90-deploy-pwsh.cmd.tmpl') | chezmoi.exe execute-template | Set-Content -LiteralPath $rendered
-              Write-Host 'Rendered post-apply deployment script after bootstrap failure:'
-              Get-Content -LiteralPath $rendered
-              exit 1
-            }
+            if ($LASTEXITCODE -ne 0) { throw "bootstrap.cmd failed with exit code $LASTEXITCODE" }
           }
           finally { Pop-Location }
 
@@ -340,11 +372,17 @@ jobs:
           git -C $updateClone add home/dot_fdignore
           git -C $updateClone commit -m 'CI update fixture'
           git -C $updateClone push origin HEAD:refs/heads/main
-          Add-Content -Path $env:GITHUB_ENV -Value "UPDATE_MARKER=$marker"
+          if ($LASTEXITCODE -ne 0) { throw 'unable to push Windows update fixture' }
+
           $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
           Push-Location $runDirectory
-          try { & cmd.exe /d /c "`"$env:GITHUB_WORKSPACE\update.cmd`""; if ($LASTEXITCODE -ne 0) { exit 1 } }
+          try {
+            $update = Join-Path $env:GITHUB_WORKSPACE 'update.cmd'
+            & cmd.exe /d /c $update
+            if ($LASTEXITCODE -ne 0) { throw "update.cmd failed with exit code $LASTEXITCODE" }
+          }
           finally { Pop-Location }
+
           & pwsh.exe -NoProfile -File "$env:GITHUB_WORKSPACE\tests\windows\assert-state.ps1" `
             -RepoRoot $env:GITHUB_WORKSPACE -UpdateMarker $marker
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -390,22 +428,29 @@ jobs:
           git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
           if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
           git --git-dir=$remote show-ref --verify --quiet refs/heads/main
-          if ($LASTEXITCODE -ne 0) { throw "local bootstrap remote has no main ref" }
+          if ($LASTEXITCODE -ne 0) { throw 'local bootstrap remote has no main ref' }
           git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
-          Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REMOTE_PATH=$remote"
           Write-Host "Local bootstrap remote: $remoteUri"
 
       - name: Enable and prove CurrentUser AllSigned
         shell: pwsh
-        run: Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
+        run: |
+          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
+          $currentUser = Get-ExecutionPolicy -Scope CurrentUser
+          $effective = Get-ExecutionPolicy
+          Get-ExecutionPolicy -List | Format-Table -AutoSize
+          Write-Host "CurrentUser=$currentUser Effective=$effective"
+          if ($currentUser -ne 'AllSigned' -or $effective -ne 'AllSigned') {
+            throw "unable to establish effective CurrentUser AllSigned: CurrentUser=$currentUser Effective=$effective"
+          }
 
       - name: Reject an unsigned script under AllSigned
         shell: cmd
         run: |
-          pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1'; Set-Content -LiteralPath $p -Value 'Write-Output unsigned'; & pwsh.exe -NoProfile -File $p; $code = $LASTEXITCODE; Remove-Item -LiteralPath $p -Force; if ($code -eq 0) { exit 1 }"
+          pwsh.exe -NoProfile -Command "$policy = Get-ExecutionPolicy; Write-Output ('Effective execution policy: ' + $policy); if ($policy -ne 'AllSigned') { exit 1 }"
           if errorlevel 1 exit /b 1
-          pwsh.exe -NoProfile -Command "$key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\PowerShellCore\ShellIds\Microsoft.PowerShell'); $policy = if ($key) { $key.GetValue('ExecutionPolicy', '') } else { '' }; Write-Output ('PowerShell 7 CurrentUser policy: ' + $policy); if ($policy -ne 'AllSigned') { exit 1 }"
+          pwsh.exe -NoProfile -Command "$p = Join-Path $env:RUNNER_TEMP 'unsigned-test.ps1'; Set-Content -LiteralPath $p -Value 'Write-Output unsigned'; & pwsh.exe -NoProfile -File $p; $code = $LASTEXITCODE; Remove-Item -LiteralPath $p -Force; Write-Output ('Unsigned script exit code: ' + $code); if ($code -eq 0) { exit 1 }"
           if errorlevel 1 exit /b 1
 
       - name: Run the real bootstrap through CMD and the signing bridge
@@ -432,6 +477,7 @@ jobs:
         run: |
           set "UPDATE_CLONE=%RUNNER_TEMP%\dotfiles-update"
           git clone "%DOTFILES_REPO%" "%UPDATE_CLONE%"
+          if errorlevel 1 exit /b 1
           git -C "%UPDATE_CLONE%" config user.name ci
           git -C "%UPDATE_CLONE%" config user.email ci@example.invalid
           set "UPDATE_MARKER=ci-update-marker-%GITHUB_RUN_ID%"
@@ -439,6 +485,7 @@ jobs:
           git -C "%UPDATE_CLONE%" add home/dot_fdignore
           git -C "%UPDATE_CLONE%" commit -m "CI update fixture"
           git -C "%UPDATE_CLONE%" push origin HEAD:refs/heads/main
+          if errorlevel 1 exit /b 1
           echo UPDATE_MARKER=%UPDATE_MARKER%>>"%GITHUB_ENV%"
 
       - name: Exercise update.cmd and recheck AllSigned idempotency

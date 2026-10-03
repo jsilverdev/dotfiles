@@ -14,31 +14,6 @@ $ErrorActionPreference = "Stop"
 $NonInteractive = $NonInteractive -or $env:DOTFILES_NONINTERACTIVE -eq "1"
 $CoreOnly = $CoreOnly -or $env:DOTFILES_CORE_ONLY -eq "1"
 
-function Test-DotfilesAllSignedPolicy {
-    $locations = @(
-        @{ Hive = [Microsoft.Win32.RegistryHive]::LocalMachine; Path = "Software\Policies\Microsoft\Windows\PowerShell" },
-        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; Path = "Software\Policies\Microsoft\Windows\PowerShell" },
-        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; Path = "Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell" },
-        @{ Hive = [Microsoft.Win32.RegistryHive]::LocalMachine; Path = "Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell" }
-    )
-    foreach ($location in $locations) {
-        $baseKey = $null
-        $key = $null
-        try {
-            $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey($location.Hive, [Microsoft.Win32.RegistryView]::Default)
-            $key = $baseKey.OpenSubKey($location.Path)
-            if ($null -ne $key) {
-                $policy = $key.GetValue("ExecutionPolicy", $null)
-                if (-not [string]::IsNullOrWhiteSpace($policy)) { return $policy -eq "AllSigned" }
-            }
-        }
-        finally {
-            if ($key) { $key.Dispose() }
-            if ($baseKey) { $baseKey.Dispose() }
-        }
-    }
-    return $false
-}
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = $PSScriptRoot
 }
@@ -73,10 +48,8 @@ function Invoke-SigningHelper {
         [string]$ModuleName
     )
 
-    if (-not (Test-DotfilesAllSignedPolicy)) {
-        return
-    }
-
+    # The signing helper performs the effective-policy check. Calling it on a
+    # normal-policy machine is intentionally a no-op.
     $helper = Join-Path $RepoRoot "scripts\windows\signing.ps1"
     $bridge = Join-Path $RepoRoot "scripts\windows\invoke-ps-script.cmd"
     if (-not (Test-Path -LiteralPath $helper) -or -not (Test-Path -LiteralPath $bridge)) {
