@@ -40,7 +40,9 @@ foreach ($file in $files) {
 # PowerShell execution policy is AllSigned. The CMD bridge itself is AllSigned-safe.
 $helper = Join-Path $repo "scripts\windows\signing.ps1"
 $bridge = Join-Path $repo "scripts\windows\invoke-ps-script.cmd"
-& $bridge $helper -Action ProtectFiles -Path @($files | ForEach-Object Destination)
-if ($LASTEXITCODE -ne 0) {
-    throw "PowerShell runtime signing failed with exit code $LASTEXITCODE."
+foreach ($destination in @($files | ForEach-Object Destination)) {
+    & $bridge $helper -Action ProtectFiles -Path $destination
+    if ($LASTEXITCODE -ne 0) {
+        throw "PowerShell runtime signing failed for $destination with exit code $LASTEXITCODE."
+    }
 }
