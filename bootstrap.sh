@@ -35,6 +35,17 @@ remove_legacy_links() {
 
 remove_legacy_links
 
+configure_local_chezmoi_source() {
+    local config_dir config_path
+    config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi"
+    config_path="$config_dir/chezmoi.toml"
+
+    if [[ ! -e "$config_path" ]]; then
+        mkdir -p "$config_dir"
+        printf 'sourceDir = "%s"\n' "$PWD" > "$config_path"
+    fi
+}
+
 if [[ -f /etc/debian_version ]] && command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update
     sudo apt-get install --yes git curl wget zsh
@@ -58,6 +69,7 @@ export PATH="$HOME/.local/bin:$PATH"
 command -v chezmoi >/dev/null 2>&1 || { printf 'chezmoi installation failed.\n' >&2; exit 1; }
 
 if [[ -f "$PWD/.chezmoiroot" ]]; then
+    configure_local_chezmoi_source
     chezmoi --source "$PWD" apply
 else
     SOURCE_ROOT="$(chezmoi source-path 2>/dev/null || true)"
