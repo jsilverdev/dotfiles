@@ -357,7 +357,7 @@ jobs:
           foreach ($package in $packages) {
             cmd /c "where $($package.Command) >nul 2>&1"
             if ($LASTEXITCODE -ne 0) {
-              winget.exe install --id $package.Id --exact --source winget --scope user --silent --accept-source-agreements --accept-package-agreements
+              winget.exe install --id $package.Id --exact --source winget --scope user --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
               if ($LASTEXITCODE -ne 0) { throw "unable to install $($package.Id) for current user" }
             }
           }
@@ -529,7 +529,8 @@ jobs:
             foreach ($storeName in @('Root', 'TrustedPublisher')) {
               $existing = @(Get-ChildItem "Cert:\CurrentUser\$storeName" | Where-Object Thumbprint -eq $certificate.Thumbprint)
               if ($existing.Count -eq 0) {
-                Import-Certificate -FilePath $publicCertificate -CertStoreLocation "Cert:\CurrentUser\$storeName" -Confirm:$false | Out-Null
+                & certutil.exe -user -f -addstore $storeName $publicCertificate | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "certutil could not trust CurrentUser\\$storeName" }
               }
             }
           }

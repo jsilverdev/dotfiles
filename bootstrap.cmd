@@ -73,7 +73,7 @@ set "PACKAGE_COMMAND=%~2"
 where "%PACKAGE_COMMAND%.exe" >nul 2>&1
 if not errorlevel 1 exit /b 0
 echo Installing %PACKAGE_ID% for the current user...
-winget.exe install --id "%PACKAGE_ID%" --exact --source winget --scope user --silent --accept-source-agreements --accept-package-agreements
+winget.exe install --id "%PACKAGE_ID%" --exact --source winget --scope user --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
 if errorlevel 1 (
     echo Unable to install %PACKAGE_ID% without administrator rights. No machine-scope or portable fallback will be attempted. 1>&2
     exit /b 1

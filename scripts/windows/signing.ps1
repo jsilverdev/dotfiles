@@ -55,7 +55,8 @@ function Get-DotfilesSigningCertificate {
             $storePath = "Cert:\CurrentUser\$storeName"
             $trusted = Get-ChildItem -Path $storePath | Where-Object Thumbprint -eq $certificate.Thumbprint
             if ($null -eq $trusted) {
-                Import-Certificate -FilePath $publicCertificatePath -CertStoreLocation $storePath | Out-Null
+                & certutil.exe -user -f -addstore $storeName $publicCertificatePath | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "certutil could not trust CurrentUser\\$storeName." }
             }
         }
     }

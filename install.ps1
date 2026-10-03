@@ -86,12 +86,12 @@ function Install-WithWinget {
 
     if (-not $installed) {
         Write-Host "Installing $AppId..." -ForegroundColor Cyan
-        & winget install --id $AppId --exact --source winget --silent --accept-source-agreements --accept-package-agreements
+        & winget install --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
         if ($LASTEXITCODE -ne 0) { throw "WinGet could not install $AppId." }
     }
     elseif ($Update) {
         Write-Host "Updating $AppId..." -ForegroundColor Yellow
-        & winget upgrade --id $AppId --exact --source winget --silent --accept-source-agreements --accept-package-agreements
+        & winget upgrade --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
         if ($LASTEXITCODE -ne 0) { throw "WinGet could not update $AppId." }
     }
     else {
