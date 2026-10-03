@@ -55,14 +55,9 @@ try {
         $scriptPath = $temporaryScript
     }
 
-    # Launch a child pwsh process so tokens such as -RepoRoot and -Action
-    # are parsed as named script parameters. Array splatting directly into a
-    # PowerShell script treats these values positionally.
     $pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
     & $pwsh -NoProfile -File $scriptPath @scriptArgs
-    if ($LASTEXITCODE -ne 0) {
-        $failed = $true
-    }
+    if ($LASTEXITCODE -ne 0) { $failed = $true }
 }
 catch {
     Write-Error $_
