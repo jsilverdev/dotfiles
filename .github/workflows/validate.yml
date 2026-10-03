@@ -421,6 +421,25 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "signing helper failed for $module under normal policy" }
           }
 
+      - name: Run Windows core installer directly
+        shell: pwsh
+        env:
+          DOTFILES_NONINTERACTIVE: '1'
+          DOTFILES_CORE_ONLY: '1'
+        run: |
+          $source = (& chezmoi.exe source-path).Trim()
+          $repoRoot = if (Test-Path -LiteralPath (Join-Path $source 'install.ps1')) {
+            $source
+          }
+          elseif (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $source) 'install.ps1')) {
+            Split-Path -Parent $source
+          }
+          else {
+            throw "unable to resolve repository root from chezmoi source path: $source"
+          }
+          & pwsh.exe -NoProfile -File (Join-Path $repoRoot 'install.ps1') -NonInteractive -CoreOnly -RepoRoot $repoRoot
+          if ($LASTEXITCODE -ne 0) { throw "direct core installer failed with exit code $LASTEXITCODE" }
+
       - name: Run Windows core installer through the bridge
         shell: pwsh
         env:
