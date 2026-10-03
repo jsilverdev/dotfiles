@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out the exact revision
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install static-validation tools
         run: |
@@ -70,11 +72,17 @@ jobs:
             exit 1
           fi
 
-      - name: Validate workflow and PowerShell syntax
+      - name: Validate workflow YAML
         shell: bash
         run: |
           set -euo pipefail
           ruby -e 'require "yaml"; YAML.load_file(ARGV.fetch(0))' .github/workflows/validate.yml
+          echo 'workflow-yaml-ok'
+
+      - name: Validate PowerShell syntax
+        shell: bash
+        run: |
+          set -euo pipefail
           pwsh -NoProfile -Command '
             $errors = @();
             Get-ChildItem -Recurse -File -Include *.ps1,*.psm1 | ForEach-Object {
@@ -84,6 +92,7 @@ jobs:
             };
             if ($errors.Count) { $errors | Write-Error; exit 1 }
           '
+          echo 'powershell-syntax-ok'
 
   linux-debian:
     runs-on: ubuntu-24.04
@@ -98,6 +107,8 @@ jobs:
 
       - name: Check out the exact revision
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Run Debian bootstrap as an unprivileged user
         shell: bash
@@ -106,6 +117,7 @@ jobs:
           DOTFILES_CORE_ONLY: '1'
         run: |
           set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_SHA"
           remote_parent="$(mktemp -d)"
           remote_dir="$remote_parent/dotfiles.git"
@@ -167,11 +179,14 @@ jobs:
 
       - name: Check out the exact revision
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Run Arch bootstrap as an unprivileged user
         shell: bash
         run: |
           set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_SHA"
           remote_parent="$(mktemp -d)"
           remote_dir="$remote_parent/dotfiles.git"
@@ -221,6 +236,8 @@ jobs:
     steps:
       - name: Check out the exact revision
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Provision WinGet if the hosted runner lacks it
         shell: pwsh
@@ -314,6 +331,8 @@ jobs:
     steps:
       - name: Check out the exact revision
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Provision WinGet before changing execution policy
         shell: pwsh
