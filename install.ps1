@@ -103,7 +103,13 @@ function Install-MustHaveApps {
     Write-Host "Installing must-have apps..." -ForegroundColor Cyan
 
     if ($CoreOnly) {
-        Write-Host "Skipping workstation WinGet catalog and starship setup in core-only mode." -ForegroundColor Yellow
+        Write-Host "Skipping workstation WinGet catalog in core-only mode." -ForegroundColor Yellow
+        Refresh-Path
+        if (-not (Get-Command starship -ErrorAction SilentlyContinue) -and (Get-Command mise -ErrorAction SilentlyContinue)) {
+            & mise use -g starship@latest
+            if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
+            Refresh-Path
+        }
     }
     else {
         $installs = @(
