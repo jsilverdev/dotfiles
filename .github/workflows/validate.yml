@@ -83,15 +83,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pwsh -NoProfile -Command '
-            $errors = @();
-            Get-ChildItem -Recurse -File -Include *.ps1,*.psm1 | ForEach-Object {
-              $tokens = $null; $parseErrors = $null;
-              [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null;
-              if ($parseErrors.Count) { $joined = $parseErrors -join '; '; $errors += "$($_.FullName): $joined" }
-            };
-            if ($errors.Count) { $errors | Write-Error; exit 1 }
-          '
+          pwsh -NoProfile -Command - <<'PWSH'
+          Write-Host "PowerShell $($PSVersionTable.PSVersion)"
+          $errors = @()
+          Get-ChildItem -Recurse -File -Include *.ps1,*.psm1 | ForEach-Object {
+            $tokens = $null
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count) {
+              $joined = $parseErrors -join '; '
+              $errors += "$($_.FullName): $joined"
+            }
+          }
+          if ($errors.Count) {
+            $errors | Write-Error
+            exit 1
+          }
+          PWSH
           echo 'powershell-syntax-ok'
 
   linux-debian:
@@ -133,6 +141,7 @@ jobs:
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
           sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          sudo -u dotfilesci -H git config --global --add safe.directory "$remote_dir"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
@@ -200,6 +209,7 @@ jobs:
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
           sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          sudo -u dotfilesci -H git config --global --add safe.directory "$remote_dir"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
@@ -270,7 +280,8 @@ jobs:
           $remoteUri = "file:///" + $remote.Replace('\', '/')
           git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
           if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
-          if (-not (git --git-dir=$remote show-ref --verify --quiet refs/heads/main)) { throw "local bootstrap remote has no main ref" }
+          git --git-dir=$remote show-ref --verify --quiet refs/heads/main
+          if ($LASTEXITCODE -ne 0) { throw "local bootstrap remote has no main ref" }
           git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REMOTE_PATH=$remote"
@@ -365,7 +376,8 @@ jobs:
           $remoteUri = "file:///" + $remote.Replace('\', '/')
           git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
           if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
-          if (-not (git --git-dir=$remote show-ref --verify --quiet refs/heads/main)) { throw "local bootstrap remote has no main ref" }
+          git --git-dir=$remote show-ref --verify --quiet refs/heads/main
+          if ($LASTEXITCODE -ne 0) { throw "local bootstrap remote has no main ref" }
           git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REMOTE_PATH=$remote"
