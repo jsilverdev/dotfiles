@@ -137,7 +137,7 @@ function Install-MustHaveApps {
         }
         if ($null -eq $installedModule) {
             Write-Host "Installing $module module..." -ForegroundColor Cyan
-            Install-Module -Name $module -Scope CurrentUser -Force -AllowClobber
+            Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false
         }
         elseif ($Update -and -not $CoreOnly) {
             Write-Host "Updating $module module..." -ForegroundColor Yellow

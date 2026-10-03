@@ -506,7 +506,7 @@ jobs:
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
           Write-Host "Local bootstrap remote: $remoteUri"
 
-      - name: Enable and prove CurrentUser AllSigned
+      - name: Create CI code-signing certificate
         shell: pwsh
         run: |
           $smoke = Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'
@@ -523,22 +523,21 @@ jobs:
           if ($null -eq $certificate) {
             $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(10) -HashAlgorithm SHA256
           }
-          $publicCertificate = [IO.Path]::ChangeExtension([IO.Path]::GetTempFileName(), '.cer')
-          try {
-            Export-Certificate -Cert $certificate -FilePath $publicCertificate -Type CERT -Force | Out-Null
-            foreach ($storeName in @('Root', 'TrustedPublisher')) {
-              $existing = @(Get-ChildItem "Cert:\CurrentUser\$storeName" | Where-Object Thumbprint -eq $certificate.Thumbprint)
-              if ($existing.Count -eq 0) {
-                & certutil.exe -user -f -addstore $storeName $publicCertificate | Out-Null
-                if ($LASTEXITCODE -ne 0) { throw "certutil could not trust CurrentUser\\$storeName" }
-              }
-            }
-          }
-          finally {
-            Remove-Item -LiteralPath $publicCertificate -Force -ErrorAction SilentlyContinue
-          }
           Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Value $certificate.Thumbprint -NoNewline
+          Export-Certificate -Cert $certificate -FilePath (Join-Path $env:RUNNER_TEMP 'dotfiles-signing.cer') -Type CERT -Force | Out-Null
 
+      - name: Trust CI code-signing certificate for current user
+        shell: cmd
+        timeout-minutes: 2
+        run: |
+          certutil.exe -user -f -addstore TrustedPublisher "%RUNNER_TEMP%\dotfiles-signing.cer"
+          if errorlevel 1 exit /b 1
+          certutil.exe -user -f -addstore Root "%RUNNER_TEMP%\dotfiles-signing.cer"
+          if errorlevel 1 exit /b 1
+
+      - name: Enable and prove CurrentUser AllSigned
+        shell: pwsh
+        run: |
           Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
           $currentUser = Get-ExecutionPolicy -Scope CurrentUser
           $effective = Get-ExecutionPolicy
