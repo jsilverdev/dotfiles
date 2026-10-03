@@ -16,7 +16,13 @@ if not defined REPO_ROOT (
     echo Unable to resolve the chezmoi working tree. 1>&2
     exit /b 1
 )
-call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -Update -RepoRoot "%REPO_ROOT%"
+if /I "%DOTFILES_CORE_ONLY%"=="1" (
+    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -Update -CoreOnly -NonInteractive -RepoRoot "%REPO_ROOT%"
+) else if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
+    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -Update -NonInteractive -RepoRoot "%REPO_ROOT%"
+) else (
+    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -Update -RepoRoot "%REPO_ROOT%"
+)
 exit /b %ERRORLEVEL%
 
 :resolve_repo_root

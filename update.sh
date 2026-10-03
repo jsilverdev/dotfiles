@@ -23,4 +23,4 @@ resolve_repo_root() {
 }
 
 REPO_ROOT="$(resolve_repo_root)" || { printf 'Unable to resolve the chezmoi working tree.\n' >&2; exit 1; }
-exec "$REPO_ROOT/install.sh" --update
+exec "$REPO_ROOT/install.sh" --update "$@"

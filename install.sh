@@ -11,12 +11,14 @@ RESET='\033[0m'
 
 REPO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 UPDATE=false
+CORE_ONLY=false
 
 function usage () {
-    echo "Usage: $0 [--update|-u]"
+    echo "Usage: $0 [--update|-u] [--core-only]"
     echo
     echo "Options:"
     echo "  -u, --update    Re-run package installers even when commands already exist"
+    echo "      --core-only Install only the runtime prerequisites used by the dotfiles"
     echo "  -h, --help      Show this help message"
 }
 
@@ -25,6 +27,9 @@ function parse_args () {
         case "$1" in
             -u|--update)
                 UPDATE=true
+                ;;
+            --core-only)
+                CORE_ONLY=true
                 ;;
             -h|--help)
                 usage
@@ -46,6 +51,10 @@ function updates_enabled () {
         *) return 1 ;;
     esac
 }
+
+if [[ "${DOTFILES_CORE_ONLY:-0}" == "1" ]]; then
+    CORE_ONLY=true
+fi
 
 function pre_setup_tasks() {
     if [ ! -d "$REPO_ROOT" ]; then
@@ -375,6 +384,11 @@ function configure_git () {
 }
 
 function configure_wsl() {
+    if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
+        echo -e "${YELLOW}Skipping WSL system configuration in non-interactive mode.${RESET}"
+        return
+    fi
+
     local desired="${REPO_ROOT}/assets/wsl/wsl.conf"
     if grep -qi microsoft /proc/version && [ -f "$desired" ]; then
         if [ ! -f /etc/wsl.conf ] || ! cmp -s "$desired" /etc/wsl.conf; then
@@ -416,6 +430,11 @@ function install_dagger () {
 }
 
 function install_optional_packages () {
+    if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
+        echo -e "${YELLOW}Skipping optional package selection in non-interactive mode.${RESET}"
+        return
+    fi
+
     local packages=(
         "mise-en-place|deb:check_package_or_run mise install_mise_en_place|arch:install_with_pacman mise"
         "docker|deb:check_package_or_run docker install_docker|arch:install_with_pacman docker"
@@ -482,8 +501,16 @@ function install_optional_packages () {
 parse_args "$@"
 pre_setup_tasks
 configure_git
-configure_wsl
-install_must_have_packages
-setup_sheldon_plugins
-setup_default_shell
-install_optional_packages
+if ! ${CORE_ONLY}; then
+    configure_wsl
+    install_must_have_packages
+    setup_sheldon_plugins
+    if [[ "${DOTFILES_NONINTERACTIVE:-0}" != "1" ]]; then
+        setup_default_shell
+    else
+        echo -e "${YELLOW}Skipping default-shell change in non-interactive mode.${RESET}"
+    fi
+    install_optional_packages
+else
+    echo -e "${YELLOW}Skipping workstation package catalog in core-only mode.${RESET}"
+fi

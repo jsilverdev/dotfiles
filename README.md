@@ -44,3 +44,9 @@ For dotfiles plus package/application and module updates, use `update.cmd` on Wi
 - Codex guidance and skills are managed normally; repository documentation is kept outside `~/.codex`.
 - PowerShell source files are unsigned templates. The post-apply hook deploys copies and signs only the runtime files when `AllSigned` is effective, so Authenticode signatures never dirty chezmoi source state.
 - Managed PowerShell modules currently include `PSFzf` and `git-aliases`. Under `AllSigned`, only their user-scoped PowerShell content is inspected and unsigned/invalid files are signed; valid publisher signatures are preserved.
+
+## CI and testing
+
+The `Validate dotfiles` workflow exercises the current chezmoi/bootstrap architecture on Debian, Arch Linux, Windows with its normal execution policy, and Windows with a simulated current-user `AllSigned` policy. Integration jobs bootstrap from a temporary local bare Git remote containing the exact commit under test, then check deployment, create-only Codex files, update wrappers, idempotent apply, signatures, module loading, and clean chezmoi/source Git state.
+
+The Windows AllSigned job validates the hosted Windows Server behavior that can be reproduced in CI: current-user certificate creation and reuse, Authenticode signing, the CMD execution bridge, PowerShell profile startup, and managed module loading. Corporate GPO/MDM/AppLocker/WDAC policy, enterprise App Installer policy, and a true non-admin corporate Windows 11 token still require validation on a managed machine.

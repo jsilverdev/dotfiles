@@ -3,14 +3,25 @@ param(
     [Alias("u")]
     [switch]$Update,
 
+    [switch]$NonInteractive,
+
+    [switch]$CoreOnly,
+
     [string]$RepoRoot
 )
 
 $ErrorActionPreference = "Stop"
+$NonInteractive = $NonInteractive -or $env:DOTFILES_NONINTERACTIVE -eq "1"
+$CoreOnly = $CoreOnly -or $env:DOTFILES_CORE_ONLY -eq "1"
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = $PSScriptRoot
 }
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
+$managedModulesPath = Join-Path $RepoRoot "scripts\windows\managed-modules.txt"
+if (-not (Test-Path -LiteralPath $managedModulesPath -PathType Leaf)) {
+    throw "The managed PowerShell module list is missing from $RepoRoot."
+}
+$ManagedModules = @(Get-Content -LiteralPath $managedModulesPath | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
 
 function Refresh-Path {
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -88,21 +99,33 @@ function Install-WithWinget {
 
 function Install-MustHaveApps {
     Write-Host "Installing must-have apps..." -ForegroundColor Cyan
-    $installs = @(
-        { Install-WithWinget -AppId "7zip.7zip" -Update:$Update },
-        { Install-WithWinget -AppId "Microsoft.PowerToys" -Update:$Update },
-        { Install-WithWinget -AppId "zyedidia.micro" -Alias "micro" -Update:$Update },
-        { Install-WithWinget -AppId "lsd-rs.lsd" -Alias "lsd" -Update:$Update },
-        { Install-WithWinget -AppId "sharkdp.bat" -Alias "bat" -Update:$Update },
-        { Install-WithWinget -AppId "Fastfetch-cli.Fastfetch" -Alias "fastfetch" -Update:$Update },
-        { Install-WithWinget -AppId "junegunn.fzf" -Alias "fzf" -Update:$Update },
-        { Install-WithWinget -AppId "sharkdp.fd" -Alias "fd" -Update:$Update },
-        { Install-WithWinget -AppId "dandavison.delta" -Alias "delta" -Update:$Update },
-        { Install-WithWinget -AppId "jqlang.jq" -Alias "jq" -Update:$Update },
-        { Install-WithWinget -AppId "Microsoft.VisualStudioCode" -Alias "code" -Update:$Update },
-        { Install-WithWinget -AppId "BurntSushi.ripgrep.MSVC" -Alias "rg" -Update:$Update },
-        { Install-WithWinget -AppId "jdx.mise" -Alias "mise" -Update:$Update }
-    )
+    $packageUpdate = $Update -and -not $CoreOnly
+    $installs = if ($CoreOnly) {
+        @(
+            { Install-WithWinget -AppId "junegunn.fzf" -Alias "fzf" -Update:$packageUpdate },
+            { Install-WithWinget -AppId "sharkdp.fd" -Alias "fd" -Update:$packageUpdate },
+            { Install-WithWinget -AppId "lsd-rs.lsd" -Alias "lsd" -Update:$packageUpdate },
+            { Install-WithWinget -AppId "sharkdp.bat" -Alias "bat" -Update:$packageUpdate },
+            { Install-WithWinget -AppId "jdx.mise" -Alias "mise" -Update:$packageUpdate }
+        )
+    }
+    else {
+        @(
+            { Install-WithWinget -AppId "7zip.7zip" -Update:$Update },
+            { Install-WithWinget -AppId "Microsoft.PowerToys" -Update:$Update },
+            { Install-WithWinget -AppId "zyedidia.micro" -Alias "micro" -Update:$Update },
+            { Install-WithWinget -AppId "lsd-rs.lsd" -Alias "lsd" -Update:$Update },
+            { Install-WithWinget -AppId "sharkdp.bat" -Alias "bat" -Update:$Update },
+            { Install-WithWinget -AppId "Fastfetch-cli.Fastfetch" -Alias "fastfetch" -Update:$Update },
+            { Install-WithWinget -AppId "junegunn.fzf" -Alias "fzf" -Update:$Update },
+            { Install-WithWinget -AppId "sharkdp.fd" -Alias "fd" -Update:$Update },
+            { Install-WithWinget -AppId "dandavison.delta" -Alias "delta" -Update:$Update },
+            { Install-WithWinget -AppId "jqlang.jq" -Alias "jq" -Update:$Update },
+            { Install-WithWinget -AppId "Microsoft.VisualStudioCode" -Alias "code" -Update:$Update },
+            { Install-WithWinget -AppId "BurntSushi.ripgrep.MSVC" -Alias "rg" -Update:$Update },
+            { Install-WithWinget -AppId "jdx.mise" -Alias "mise" -Update:$Update }
+        )
+    }
     foreach ($install in $installs) { & $install }
 
     Refresh-Path
@@ -111,7 +134,7 @@ function Install-MustHaveApps {
         if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
     }
 
-    foreach ($module in @("PSFzf", "git-aliases")) {
+    foreach ($module in $ManagedModules) {
         $installedModule = Get-Module -ListAvailable -Name $module | Select-Object -First 1
         $installedResource = if (Get-Command Get-InstalledPSResource -ErrorAction SilentlyContinue) {
             Get-InstalledPSResource -Name $module -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -120,7 +143,7 @@ function Install-MustHaveApps {
             Write-Host "Installing $module module..." -ForegroundColor Cyan
             Install-Module -Name $module -Scope CurrentUser -Force -AllowClobber
         }
-        elseif ($Update) {
+        elseif ($Update -and -not $CoreOnly) {
             Write-Host "Updating $module module..." -ForegroundColor Yellow
             if ($null -ne $installedResource -and (Get-Command Update-PSResource -ErrorAction SilentlyContinue)) {
                 Update-PSResource -Name $module -Scope CurrentUser -Force
@@ -137,6 +160,11 @@ function Install-MustHaveApps {
 }
 
 function Install-OptionalApps {
+    if ($NonInteractive) {
+        Write-Host "Skipping optional installs in non-interactive mode..." -ForegroundColor Yellow
+        return
+    }
+
     $optionalApps = @(
         @{ name = "Google Chrome"; install = { Install-WithWinget -AppId "Google.Chrome" -Update:$Update } },
         @{ name = "KeepassXC"; install = { Install-WithWinget -AppId "KeePassXCTeam.KeePassXC" -Update:$Update } },
@@ -232,15 +260,22 @@ function Configure-WindowsTerminal {
 }
 
 function Configure-Wsl {
+    if ($NonInteractive -or $CoreOnly) {
+        Write-Host "Skipping WSL installation in non-interactive/core-only mode..." -ForegroundColor Yellow
+        return
+    }
+
     if (Get-Command wsl -ErrorAction SilentlyContinue) { Write-Host "Installing WSL..." -ForegroundColor Cyan; & wsl --install --no-distribution }
 }
 
 Refresh-Path
 Check-RequiredApps
-Download-Fonts
-Install-UserFonts
+if (-not $CoreOnly) {
+    Download-Fonts
+    Install-UserFonts
+}
 Configure-Git
 Install-MustHaveApps
-Configure-WindowsTerminal
+if (-not $CoreOnly) { Configure-WindowsTerminal }
 Install-OptionalApps
 Configure-Wsl

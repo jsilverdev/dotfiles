@@ -1,7 +1,11 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "REPO_URL=https://github.com/jsilverdev/dotfiles.git"
+if defined DOTFILES_REPO (
+    set "REPO_URL=%DOTFILES_REPO%"
+) else (
+    set "REPO_URL=https://github.com/jsilverdev/dotfiles.git"
+)
 
 call :remove_legacy_broken_links
 if errorlevel 1 exit /b 1
@@ -52,7 +56,15 @@ if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" (
     exit /b 1
 )
 
-call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -RepoRoot "%REPO_ROOT%"
+if /I "%DOTFILES_NONINTERACTIVE%"=="1" if /I "%DOTFILES_CORE_ONLY%"=="1" (
+    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -CoreOnly -RepoRoot "%REPO_ROOT%"
+) else if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
+    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -RepoRoot "%REPO_ROOT%"
+) else if /I "%DOTFILES_CORE_ONLY%"=="1" (
+    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -CoreOnly -RepoRoot "%REPO_ROOT%"
+) else (
+    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -RepoRoot "%REPO_ROOT%"
+)
 exit /b %ERRORLEVEL%
 
 :ensure_package
