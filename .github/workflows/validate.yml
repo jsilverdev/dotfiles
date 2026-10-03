@@ -120,6 +120,7 @@ jobs:
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
+          sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
@@ -183,6 +184,7 @@ jobs:
           useradd --create-home --shell /bin/bash dotfilesci
           printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
           chmod 0440 /etc/sudoers.d/dotfilesci
+          sudo -u dotfilesci -H git config --global --add safe.directory "$GITHUB_WORKSPACE"
           sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
             GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
             DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
@@ -248,9 +250,11 @@ jobs:
           git init --bare $remote
           $head = (git -C $env:GITHUB_WORKSPACE rev-parse HEAD).Trim()
           if ($head -ne $env:GITHUB_SHA) { throw "checkout $head does not match GITHUB_SHA $env:GITHUB_SHA" }
-          git -C $env:GITHUB_WORKSPACE push $remote "$($env:GITHUB_SHA):refs/heads/main"
-          git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           $remoteUri = "file:///" + $remote.Replace('\', '/')
+          git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
+          if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
+          if (-not (git --git-dir=$remote show-ref --verify --quiet refs/heads/main)) { throw "local bootstrap remote has no main ref" }
+          git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REMOTE_PATH=$remote"
           Write-Host "Local bootstrap remote: $remoteUri"
@@ -339,9 +343,11 @@ jobs:
           git init --bare $remote
           $head = (git -C $env:GITHUB_WORKSPACE rev-parse HEAD).Trim()
           if ($head -ne $env:GITHUB_SHA) { throw "checkout $head does not match GITHUB_SHA $env:GITHUB_SHA" }
-          git -C $env:GITHUB_WORKSPACE push $remote "$($env:GITHUB_SHA):refs/heads/main"
-          git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           $remoteUri = "file:///" + $remote.Replace('\', '/')
+          git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
+          if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
+          if (-not (git --git-dir=$remote show-ref --verify --quiet refs/heads/main)) { throw "local bootstrap remote has no main ref" }
+          git --git-dir=$remote symbolic-ref HEAD refs/heads/main
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
           Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REMOTE_PATH=$remote"
           Write-Host "Local bootstrap remote: $remoteUri"
@@ -358,7 +364,8 @@ jobs:
           & pwsh.exe -NoProfile -File $p;
           $code = $LASTEXITCODE;
           Remove-Item -LiteralPath $p -Force;
-          if ((Get-ExecutionPolicy) -ne 'AllSigned' -or $code -eq 0) { exit 1 }"
+          $policy = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell').GetValue('ExecutionPolicy', '');
+          if ($policy -ne 'AllSigned' -or $code -eq 0) { exit 1 }"
 
       - name: Run the real bootstrap through CMD and the signing bridge
         shell: cmd

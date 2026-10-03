@@ -5,6 +5,33 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Test-DotfilesAllSignedPolicy {
+    $locations = @(
+        @{ Hive = [Microsoft.Win32.RegistryHive]::LocalMachine; Path = "Software\Policies\Microsoft\Windows\PowerShell" },
+        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; Path = "Software\Policies\Microsoft\Windows\PowerShell" },
+        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; Path = "Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell" },
+        @{ Hive = [Microsoft.Win32.RegistryHive]::LocalMachine; Path = "Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell" }
+    )
+    foreach ($location in $locations) {
+        $baseKey = $null
+        $key = $null
+        try {
+            $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey($location.Hive, [Microsoft.Win32.RegistryView]::Default)
+            $key = $baseKey.OpenSubKey($location.Path)
+            if ($null -ne $key) {
+                $policy = $key.GetValue("ExecutionPolicy", $null)
+                if (-not [string]::IsNullOrWhiteSpace($policy)) { return $policy -eq "AllSigned" }
+            }
+        }
+        finally {
+            if ($key) { $key.Dispose() }
+            if ($baseKey) { $baseKey.Dispose() }
+        }
+    }
+    return $false
+}
+
 $repo = (Resolve-Path -LiteralPath $RepoRoot).Path
 $sourceRoot = Join-Path $repo "home\.chezmoitemplates\pwsh"
 $destinationRoot = Join-Path $HOME ".config\pwsh"
@@ -35,7 +62,7 @@ foreach ($file in $files) {
     Copy-Item -LiteralPath $source -Destination $file.Destination -Force
 }
 
-if ((Get-ExecutionPolicy) -eq "AllSigned") {
+if (Test-DotfilesAllSignedPolicy) {
     $helper = Join-Path $repo "scripts\windows\signing.ps1"
     $bridge = Join-Path $repo "scripts\windows\invoke-ps-script.cmd"
     & $bridge $helper -Action ProtectFiles -Path @($files | ForEach-Object Destination)

@@ -266,7 +266,7 @@ function install_debian_packages () {
         "ripgrep"
     )
 
-    for app in ${debian_apps[@]}; do
+    for app in "${debian_apps[@]}"; do
         install_with_apt $app
     done
 
@@ -332,7 +332,7 @@ function install_arch_packages () {
         "ripgrep"
     )
 
-    for app in ${pacman_apps[@]}; do
+    for app in "${pacman_apps[@]}"; do
         install_with_pacman $app
     done
 

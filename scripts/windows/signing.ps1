@@ -13,7 +13,29 @@ $certificateSubject = "CN=jsilverdev Dotfiles Code Signing"
 $codeSigningOid = "1.3.6.1.5.5.7.3.3"
 
 function Test-AllSignedPolicy {
-    return (Get-ExecutionPolicy) -eq "AllSigned"
+    $locations = @(
+        @{ Hive = [Microsoft.Win32.RegistryHive]::LocalMachine; Path = "Software\Policies\Microsoft\Windows\PowerShell" },
+        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; Path = "Software\Policies\Microsoft\Windows\PowerShell" },
+        @{ Hive = [Microsoft.Win32.RegistryHive]::CurrentUser; Path = "Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell" },
+        @{ Hive = [Microsoft.Win32.RegistryHive]::LocalMachine; Path = "Software\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell" }
+    )
+    foreach ($location in $locations) {
+        $baseKey = $null
+        $key = $null
+        try {
+            $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey($location.Hive, [Microsoft.Win32.RegistryView]::Default)
+            $key = $baseKey.OpenSubKey($location.Path)
+            if ($null -ne $key) {
+                $policy = $key.GetValue("ExecutionPolicy", $null)
+                if (-not [string]::IsNullOrWhiteSpace($policy)) { return $policy -eq "AllSigned" }
+            }
+        }
+        finally {
+            if ($key) { $key.Dispose() }
+            if ($baseKey) { $baseKey.Dispose() }
+        }
+    }
+    return $false
 }
 
 function Test-CodeSigningCertificate {
