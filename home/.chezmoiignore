@@ -1,0 +1,11 @@
+{{- if eq .chezmoi.os "windows" }}
+.zshenv
+.config/zsh
+.config/sheldon
+{{- else }}
+.config/pwsh
+.wslconfig
+.chezmoiscripts
+.chezmoiscripts/run_after_90-deploy-pwsh.cmd.tmpl
+.chezmoiscripts/90-deploy-pwsh.cmd
+{{- end }}
