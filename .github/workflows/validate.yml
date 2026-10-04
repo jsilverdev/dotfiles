@@ -474,6 +474,98 @@ jobs:
           }
           finally { Pop-Location }
 
+      - name: Probe Windows deployed files and core CLI tools
+        shell: pwsh
+        run: |
+          $requiredFiles = @(
+            (Join-Path $HOME '.gitconfig'),
+            (Join-Path $HOME '.gitconfig.local'),
+            (Join-Path $HOME '.fdignore'),
+            (Join-Path $HOME '.wslconfig'),
+            (Join-Path $HOME '.config\starship\config.toml'),
+            (Join-Path $HOME '.config\pwsh\env.ps1'),
+            (Join-Path $HOME '.config\pwsh\lib\helpers.ps1'),
+            (Join-Path $HOME '.config\pwsh\lib\aliases.ps1'),
+            $PROFILE.CurrentUserAllHosts
+          )
+          foreach ($path in $requiredFiles) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "missing deployed file: $path" }
+          }
+          foreach ($command in @('micro','lsd','bat','fastfetch','fzf','fd','delta','jq','rg','mise')) {
+            $resolved = Get-Command -Name $command -ErrorAction SilentlyContinue
+            if ($null -eq $resolved) { throw "core CLI tool is unavailable: $command" }
+            Write-Host "$command -> $($resolved.Source)"
+          }
+          $source = (& chezmoi.exe source-path).Trim()
+          $sourceCommit = (git -C $source rev-parse HEAD).Trim()
+          if ($sourceCommit -ne $env:GITHUB_SHA) { throw "source commit $sourceCommit is not $env:GITHUB_SHA" }
+
+      - name: Probe Windows chezmoi idempotency
+        shell: pwsh
+        run: |
+          & chezmoi.exe apply
+          if ($LASTEXITCODE -ne 0) { throw 'first probe apply failed' }
+          & chezmoi.exe apply
+          if ($LASTEXITCODE -ne 0) { throw 'second probe apply failed' }
+          $status = @(& chezmoi.exe status --exclude=scripts)
+          if ($LASTEXITCODE -ne 0) { throw 'chezmoi status failed' }
+          $pending = @($status | Where-Object {
+            $line = [string]$_
+            $line.Length -ge 2 -and $line[1] -ne ' '
+          })
+          $status | ForEach-Object { Write-Host "STATUS: $_" }
+          if ($pending.Count -ne 0) { throw "chezmoi still has pending target changes: $($pending -join ' | ')" }
+
+      - name: Probe Windows create-only semantics
+        shell: pwsh
+        run: |
+          $config = Join-Path $HOME '.codex\config.toml'
+          $rules = Join-Path $HOME '.codex\rules\default.rules'
+          $configMarker = "ci-probe-create-only-$env:GITHUB_RUN_ID"
+          $rulesMarker = "ci-probe-create-only-rule-$env:GITHUB_RUN_ID"
+          Add-Content -LiteralPath $config -Value $configMarker
+          Add-Content -LiteralPath $rules -Value $rulesMarker
+          & chezmoi.exe apply
+          if ($LASTEXITCODE -ne 0) { throw 'create-only probe apply failed' }
+          if (-not ((Get-Content $config -Raw).Contains($configMarker))) { throw 'chezmoi overwrote create-only config.toml' }
+          if (-not ((Get-Content $rules -Raw).Contains($rulesMarker))) { throw 'chezmoi overwrote create-only default.rules' }
+          $status = @(& chezmoi.exe status --exclude=scripts)
+          $pending = @($status | Where-Object {
+            $line = [string]$_
+            $line.Length -ge 2 -and $line[1] -ne ' '
+          })
+          $status | ForEach-Object { Write-Host "STATUS: $_" }
+          if ($pending.Count -ne 0) { throw "create-only probe left pending target changes: $($pending -join ' | ')" }
+
+      - name: Probe Windows modules and source cleanliness
+        shell: pwsh
+        run: |
+          $modules = Get-Content -LiteralPath "$env:GITHUB_WORKSPACE\scripts\windows\managed-modules.txt" |
+            Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') }
+          foreach ($module in $modules) {
+            if ($module -eq 'git-aliases') {
+              Import-Module $module -Force -DisableNameChecking -ErrorAction Stop
+            } else {
+              Import-Module $module -Force -ErrorAction Stop
+            }
+          }
+          $certificate = @(Get-ChildItem Cert:\CurrentUser\My | Where-Object Subject -eq 'CN=jsilverdev Dotfiles Code Signing')
+          if ($certificate.Count -ne 0) { throw 'normal-policy probe unexpectedly found the dotfiles signing certificate' }
+          $source = (& chezmoi.exe source-path).Trim()
+          $sourceStatus = @(git -C $source status --porcelain)
+          if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -ne 0) { throw "chezmoi source is dirty: $($sourceStatus -join ' | ')" }
+          $repoStatus = @(git -C $env:GITHUB_WORKSPACE status --porcelain)
+          if ($LASTEXITCODE -ne 0 -or $repoStatus.Count -ne 0) { throw "checkout is dirty: $($repoStatus -join ' | ')" }
+
+      - name: Probe Windows PowerShell profile startup
+        shell: pwsh
+        run: |
+          $profileOutput = @(& pwsh.exe -Command "Write-Output 'profile-ok'" 2>&1)
+          $profileOutput | ForEach-Object { Write-Host $_ }
+          if ($LASTEXITCODE -ne 0 -or -not ($profileOutput -contains 'profile-ok')) {
+            throw "PowerShell profile startup failed: $($profileOutput -join ' | ')"
+          }
+
       - name: Assert Windows normal-policy state
         shell: pwsh
         run: |
@@ -630,6 +722,20 @@ jobs:
           if ($currentUser -ne 'AllSigned' -or $effective -ne 'AllSigned') {
             throw "unable to establish effective CurrentUser AllSigned: CurrentUser=$currentUser Effective=$effective"
           }
+
+      - name: Execute trusted smoke script directly under AllSigned
+        shell: cmd
+        run: |
+          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
+          if errorlevel 1 exit /b 1
+
+      - name: Execute bridge-equivalent signed copy under AllSigned
+        shell: cmd
+        run: |
+          pwsh.exe -NoProfile -Command "$thumb=(Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Raw).Trim(); $cert=Get-ChildItem Cert:\CurrentUser\My ^| Where-Object Thumbprint -eq $thumb ^| Select-Object -First 1; $src=Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'; $dst=Join-Path $env:RUNNER_TEMP 'allsigned-direct-copy.ps1'; Copy-Item -LiteralPath $src -Destination $dst -Force; Set-AuthenticodeSignature -FilePath $dst -Certificate $cert -HashAlgorithm SHA256 ^| Out-Null; $sig=Get-AuthenticodeSignature -FilePath $dst; if($sig.Status -ne 'Valid'){throw ('signed copy invalid: '+$sig.Status)}"
+          if errorlevel 1 exit /b 1
+          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-direct-copy.ps1" -Value bridge-ok
+          if errorlevel 1 exit /b 1
 
       - name: Smoke-test signing bridge under AllSigned
         shell: cmd
