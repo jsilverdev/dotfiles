@@ -132,14 +132,28 @@ function Protect-PowerShellFile {
     }
 
     $signature = Get-AuthenticodeSignature -FilePath $FilePath
-    if ($signature.Status -eq "Valid") {
+    if (
+        $signature.Status -eq "Valid" -and
+        $null -ne $signature.SignerCertificate -and
+        $signature.SignerCertificate.Thumbprint -eq $Certificate.Thumbprint
+    ) {
         return
     }
 
+    # A module can already carry a cryptographically valid vendor signature
+    # whose publisher is not trusted by a non-interactive AllSigned session.
+    # Re-sign managed files with the dotfiles certificate so every executable
+    # PowerShell asset has the same explicitly trusted publisher.
     Set-AuthenticodeSignature -FilePath $FilePath -Certificate $Certificate -HashAlgorithm SHA256 | Out-Null
     $signature = Get-AuthenticodeSignature -FilePath $FilePath
     if ($signature.Status -ne "Valid") {
         throw "Authenticode signature verification failed for ${FilePath}: $($signature.Status) $($signature.StatusMessage)"
+    }
+    if (
+        $null -eq $signature.SignerCertificate -or
+        $signature.SignerCertificate.Thumbprint -ne $Certificate.Thumbprint
+    ) {
+        throw "Authenticode signer verification failed for ${FilePath}: expected $($Certificate.Thumbprint)."
     }
 }
 
