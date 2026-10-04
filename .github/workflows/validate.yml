@@ -587,11 +587,8 @@ jobs:
             -RepoRoot $env:GITHUB_WORKSPACE -ExpectedCommit $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Exercise update.cmd against the local remote
+      - name: Create Windows update fixture
         shell: pwsh
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
         run: |
           $updateClone = Join-Path $env:RUNNER_TEMP 'dotfiles-update'
           git clone $env:DOTFILES_REPO $updateClone
@@ -603,7 +600,14 @@ jobs:
           git -c commit.gpgsign=false -C $updateClone commit -m 'CI update fixture'
           git -C $updateClone push origin HEAD:refs/heads/main
           if ($LASTEXITCODE -ne 0) { throw 'unable to push Windows update fixture' }
+          Add-Content -Path $env:GITHUB_ENV -Value "UPDATE_MARKER=$marker"
 
+      - name: Exercise Windows update.cmd against the local remote
+        shell: pwsh
+        env:
+          DOTFILES_NONINTERACTIVE: '1'
+          DOTFILES_CORE_ONLY: '1'
+        run: |
           $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
           Push-Location $runDirectory
           try {
@@ -613,8 +617,11 @@ jobs:
           }
           finally { Pop-Location }
 
+      - name: Assert Windows state after update
+        shell: pwsh
+        run: |
           & pwsh.exe -NoProfile -File "$env:GITHUB_WORKSPACE\tests\windows\assert-state.ps1" `
-            -RepoRoot $env:GITHUB_WORKSPACE -UpdateMarker $marker
+            -RepoRoot $env:GITHUB_WORKSPACE -UpdateMarker $env:UPDATE_MARKER
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   windows-allsigned:
@@ -671,6 +678,12 @@ jobs:
           param([string]$Value)
           if ($Value -ne 'bridge-ok') { throw "unexpected bridge value: $Value" }
           '@ | Set-Content -LiteralPath $smoke
+
+          $signerSmoke = Join-Path $env:RUNNER_TEMP 'allsigned-signer-smoke.ps1'
+          @'
+          param([string]$Value)
+          if ($Value -ne 'signer-ok') { throw "unexpected signer value: $Value" }
+          '@ | Set-Content -LiteralPath $signerSmoke
 
           $subject = 'CN=jsilverdev Dotfiles Code Signing'
           $certificate = Get-ChildItem Cert:\CurrentUser\My |
@@ -743,19 +756,13 @@ jobs:
           pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
           if errorlevel 1 exit /b 1
 
-      - name: Smoke-test Windows PowerShell signer under AllSigned
-        shell: powershell
+      - name: Smoke-test centralized signer through the bridge under AllSigned
+        shell: cmd
         run: |
-          $smoke = Join-Path $env:RUNNER_TEMP 'allsigned-windows-powershell-signer.ps1'
-          @'
-          param([string]$Value)
-          if ($Value -ne 'signer-ok') { throw "unexpected signer value: $Value" }
-          '@ | Set-Content -LiteralPath $smoke
-          $env:DOTFILES_SIGNING_REQUIRED = '1'
-          & "$env:GITHUB_WORKSPACE\scripts\windows\signing.ps1" -Action ProtectFiles -Path $smoke
-          if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell signing helper failed with exit code $LASTEXITCODE" }
-          $signature = Get-AuthenticodeSignature -FilePath $smoke
-          if ($signature.Status -ne 'Valid') { throw "Windows PowerShell signer produced $($signature.Status): $($signature.StatusMessage)" }
+          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\scripts\windows\signing.ps1" -Action ProtectFiles -Path "%RUNNER_TEMP%\allsigned-signer-smoke.ps1"
+          if errorlevel 1 exit /b 1
+          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-signer-smoke.ps1" -Value signer-ok
+          if errorlevel 1 exit /b 1
 
       - name: Smoke-test signing bridge under AllSigned
         shell: cmd
@@ -798,7 +805,7 @@ jobs:
           if errorlevel 1 exit /b 1
           echo UPDATE_MARKER=%UPDATE_MARKER%>>"%GITHUB_ENV%"
 
-      - name: Exercise update.cmd and recheck AllSigned idempotency
+      - name: Exercise update.cmd under AllSigned
         shell: cmd
         env:
           DOTFILES_NONINTERACTIVE: '1'
@@ -806,5 +813,9 @@ jobs:
         run: |
           call "%GITHUB_WORKSPACE%\update.cmd"
           if errorlevel 1 exit /b 1
+
+      - name: Recheck AllSigned state after update
+        shell: cmd
+        run: |
           call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt" -UpdateMarker "%UPDATE_MARKER%"
           if errorlevel 1 exit /b 1
