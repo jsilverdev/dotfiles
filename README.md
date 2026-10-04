@@ -9,9 +9,7 @@ This repository uses [chezmoi](https://www.chezmoi.io/) to deploy regular dotfil
 Open **Windows PowerShell 5.1** and run:
 
 ```powershell
-$bootstrap = Join-Path $env:TEMP 'dotfiles-bootstrap.cmd'
-Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.cmd' -OutFile $bootstrap
-& $env:ComSpec /d /c "call `"$bootstrap`""
+$bootstrap="$env:TEMP\dotfiles-bootstrap.cmd"; Invoke-WebRequest -UseBasicParsing 'https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.cmd' -OutFile $bootstrap; & $env:ComSpec /d /c "`"$bootstrap`""
 ```
 
 Windows PowerShell 5.1 is only used to download and launch the CMD bootstrap. The bootstrap itself provisions and uses PowerShell 7 where required.
