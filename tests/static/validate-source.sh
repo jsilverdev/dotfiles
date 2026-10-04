@@ -24,8 +24,11 @@ validate_chezmoi() {
     done < <(find "$repo_root" -type f -name '*.tmpl' -print0)
 }
 
-validate_architecture() {
-    [[ "$(tr -d '\r\n' < .chezmoiroot)" == "home" ]]
+validate_paths() {
+    [[ "$(tr -d '\r\n' < .chezmoiroot)" == "home" ]] || {
+        echo '.chezmoiroot must contain home' >&2
+        exit 1
+    }
 
     local required_paths=(
         home
@@ -44,7 +47,9 @@ validate_architecture() {
     for path in "${required_paths[@]}"; do
         [[ -e "$path" ]] || { printf 'required path is missing: %s\n' "$path" >&2; exit 1; }
     done
+}
 
+validate_legacy() {
     if git grep -n -E 'DOTFILES_CORE_ONLY|CoreOnly|--core-only' -- ':!tests/static/validate-source.sh'; then
         echo 'obsolete core-only mode is still referenced' >&2
         exit 1
@@ -61,6 +66,9 @@ validate_architecture() {
         echo 'obsolete master bootstrap URL found' >&2
         exit 1
     fi
+}
+
+validate_policy() {
     if git grep -n -E 'Set-ExecutionPolicy.*(Bypass|Unrestricted)|-ExecutionPolicy[[:space:]]+(Bypass|Unrestricted)' -- ':!.github/workflows/validate.yml'; then
         echo 'production execution-policy weakening found' >&2
         exit 1
@@ -69,6 +77,9 @@ validate_architecture() {
         echo 'implementation-specific execution-policy registry probing found' >&2
         exit 1
     fi
+}
+
+validate_signatures() {
     if git grep -n '^# SIG # Begin signature block' -- '*.ps1' '*.psm1'; then
         echo 'signed PowerShell source was committed' >&2
         exit 1
@@ -78,14 +89,20 @@ validate_architecture() {
 case "${1:-all}" in
     shell) validate_shell ;;
     chezmoi) validate_chezmoi ;;
-    architecture) validate_architecture ;;
+    paths) validate_paths ;;
+    legacy) validate_legacy ;;
+    policy) validate_policy ;;
+    signatures) validate_signatures ;;
     all)
         validate_shell
         validate_chezmoi
-        validate_architecture
+        validate_paths
+        validate_legacy
+        validate_policy
+        validate_signatures
         ;;
     *)
-        printf 'usage: %s [shell|chezmoi|architecture|all]\n' "$0" >&2
+        printf 'usage: %s [shell|chezmoi|paths|legacy|policy|signatures|all]\n' "$0" >&2
         exit 2
         ;;
 esac
