@@ -11,6 +11,7 @@ param(
 $ErrorActionPreference = "Stop"
 $certificateSubject = "CN=jsilverdev Dotfiles Code Signing"
 $codeSigningOid = "1.3.6.1.5.5.7.3.3"
+$enhancedKeyUsageOid = "2.5.29.37"
 
 function Test-CodeSigningCertificate {
     param([System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate)
@@ -19,7 +20,25 @@ function Test-CodeSigningCertificate {
         return $false
     }
 
-    return @($Certificate.EnhancedKeyUsageList | Where-Object { $_.ObjectId.Value -eq $codeSigningOid }).Count -gt 0
+    # Read the X.509 EKU extension directly instead of relying on the
+    # PowerShell certificate provider's EnhancedKeyUsageList projection.
+    # This behaves consistently in PowerShell 7 and Windows PowerShell 5.1.
+    $ekuExtension = $Certificate.Extensions |
+        Where-Object { $_.Oid.Value -eq $enhancedKeyUsageOid } |
+        Select-Object -First 1
+    if ($null -eq $ekuExtension) {
+        return $false
+    }
+
+    try {
+        $eku = New-Object System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension
+        $eku.CopyFrom($ekuExtension)
+    }
+    catch {
+        return $false
+    }
+
+    return @($eku.EnhancedKeyUsages | Where-Object { $_.Value -eq $codeSigningOid }).Count -gt 0
 }
 
 function Get-DotfilesSigningCertificate {
