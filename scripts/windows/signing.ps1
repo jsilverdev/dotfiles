@@ -13,6 +13,26 @@ $certificateSubject = "CN=jsilverdev Dotfiles Code Signing"
 $codeSigningOid = "1.3.6.1.5.5.7.3.3"
 $enhancedKeyUsageOid = "2.5.29.37"
 
+function Initialize-CertificateProvider {
+    if ($null -ne (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
+        return
+    }
+
+    # Windows PowerShell can inherit PowerShell 7's PSModulePath when the bridge
+    # is invoked recursively from a pwsh process. Load the inbox security module
+    # by absolute path so the Cert: provider and Authenticode cmdlets are present.
+    $securityModule = Join-Path $PSHOME "Modules\Microsoft.PowerShell.Security\Microsoft.PowerShell.Security.psd1"
+    if (-not (Test-Path -LiteralPath $securityModule -PathType Leaf)) {
+        throw "Microsoft.PowerShell.Security was not found under PSHOME: $securityModule"
+    }
+
+    Import-Module -Name $securityModule -Force -ErrorAction Stop
+
+    if ($null -eq (Get-PSDrive -Name Cert -ErrorAction SilentlyContinue)) {
+        throw "The Cert: provider is unavailable after loading Microsoft.PowerShell.Security."
+    }
+}
+
 function Test-CodeSigningCertificate {
     param([System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate)
 
@@ -153,6 +173,7 @@ if ($env:DOTFILES_SIGNING_REQUIRED -ne "1" -and (Get-ExecutionPolicy) -ne "AllSi
     return
 }
 
+Initialize-CertificateProvider
 $certificate = Get-DotfilesSigningCertificate
 
 switch ($Action) {
