@@ -9,15 +9,16 @@ LIGHT='\x1b[2m'
 RESET='\033[0m'
 
 
-SRC_DIR=$(dirname "${0}")
-DOTFILES_DIR="${DOTFILES_DIR:-${SRC_DIR:-$HOME/.dotfiles}}"
+REPO_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 UPDATE=false
+CORE_ONLY=false
 
 function usage () {
-    echo "Usage: $0 [--update|-u]"
+    echo "Usage: $0 [--update|-u] [--core-only]"
     echo
     echo "Options:"
     echo "  -u, --update    Re-run package installers even when commands already exist"
+    echo "      --core-only Install only the runtime prerequisites used by the dotfiles"
     echo "  -h, --help      Show this help message"
 }
 
@@ -26,6 +27,9 @@ function parse_args () {
         case "$1" in
             -u|--update)
                 UPDATE=true
+                ;;
+            --core-only)
+                CORE_ONLY=true
                 ;;
             -h|--help)
                 usage
@@ -48,13 +52,15 @@ function updates_enabled () {
     esac
 }
 
+if [[ "${DOTFILES_CORE_ONLY:-0}" == "1" ]]; then
+    CORE_ONLY=true
+fi
+
 function pre_setup_tasks() {
-    if [ ! -d "$DOTFILES_DIR" ]; then
-        echo -e "${RED}The folder '$DOTFILES_DIR' not exists exiting...";
+    if [ ! -d "$REPO_ROOT" ]; then
+        echo -e "${RED}The repository folder '$REPO_ROOT' does not exist; exiting...";
         exit 1;
     fi
-
-    source "${DOTFILES_DIR}/config/zsh/.zshenv"
 
     detect_arch
 
@@ -199,7 +205,7 @@ function install_fzf () {
     local fzf_dir="$HOME/.config/fzf"
 
     if [ -d "$fzf_dir/.git" ]; then
-        git -C "$fzf_dir" pull --ff-only
+        git -c safe.directory="$fzf_dir" -C "$fzf_dir" pull --ff-only
     else
         git clone https://github.com/junegunn/fzf.git "$fzf_dir"
     fi
@@ -260,7 +266,7 @@ function install_debian_packages () {
         "ripgrep"
     )
 
-    for app in ${debian_apps[@]}; do
+    for app in "${debian_apps[@]}"; do
         install_with_apt $app
     done
 
@@ -326,7 +332,7 @@ function install_arch_packages () {
         "ripgrep"
     )
 
-    for app in ${pacman_apps[@]}; do
+    for app in "${pacman_apps[@]}"; do
         install_with_pacman $app
     done
 
@@ -351,47 +357,6 @@ function install_must_have_packages() {
 
 }
 
-function setup_dot_files () {
-
-    DOTBOT_BIN="bin/dotbot"
-    DOTBOT_DIR="lib/dotbot"
-    DOTBOT_CONF_FILE="install.conf.yaml"
-    DOTBOT_FULL_PATH_BIN="${DOTFILES_DIR}/${DOTBOT_DIR}/bin/dotbot"
-
-    BASE_CONFIG="base"
-    CONFIG_SUFFIX=".yaml"
-    META_DIR="meta"
-    CONFIG_DIR="configs"
-
-    CODEX_DIR="$HOME/.codex"
-    CODEX_CONFIG="$CODEX_DIR/config.toml"
-    CODEX_RULES="$CODEX_DIR/rules/default.rules"
-
-    if [ ! -e "$CODEX_CONFIG" ]; then
-        mkdir -p "$CODEX_DIR"
-        cp "$DOTFILES_DIR/config/codex/config.toml.example" "$CODEX_CONFIG"
-        echo -e "${GREEN}Created Codex local configuration: $CODEX_CONFIG${RESET}"
-    else
-        echo -e "${YELLOW}Codex local configuration already exists: $CODEX_CONFIG${RESET}"
-    fi
-
-    if [ ! -e "$CODEX_RULES" ]; then
-        mkdir -p "$CODEX_DIR/rules"
-        cp "$DOTFILES_DIR/config/codex/rules/default.rules.example" "$CODEX_RULES"
-        echo -e "${GREEN}Created Codex local configuration: $CODEX_RULES${RESET}"
-    else
-        echo -e "${YELLOW}Codex local configuration already exists: $CODEX_RULES${RESET}"
-    fi
-
-    $DOTBOT_FULL_PATH_BIN -d "$DOTFILES_DIR" -c "${META_DIR}/${BASE_CONFIG}${CONFIG_SUFFIX}"
-
-    CONFIGS="codex zsh"
-
-    for config in $CONFIGS; do
-        $DOTBOT_FULL_PATH_BIN -d "$DOTFILES_DIR" -c "${META_DIR}/${CONFIG_DIR}/${config}${CONFIG_SUFFIX}"
-    done
-}
-
 function setup_sheldon_plugins () {
     if hash "sheldon" 2> /dev/null; then
         sheldon lock
@@ -399,28 +364,39 @@ function setup_sheldon_plugins () {
 }
 
 function setup_default_shell() {
+    local target_user="${USER:-$(id -un)}"
+    local target_shell
 
-    current_shell=$(getent passwd "$USER" | cut -d: -f7)
+    current_shell=$(getent passwd "$target_user" | cut -d: -f7)
+    target_shell="$(which zsh)"
 
-    if [ "$current_shell" != "$(which zsh)" ]; then
-        chsh -s "$(which zsh)"
-        echo -e "${GREEN}Default shell changed to zsh.${RESET}"
+    if [ "$current_shell" != "$target_shell" ]; then
+        chsh -s "$target_shell" "$target_user"
+        echo -e "${GREEN}Default shell changed to zsh for ${target_user}.${RESET}"
     else
-        echo -e "${YELLOW}zsh is already the default shell for $USER. No changes made.${RESET}"
+        echo -e "${YELLOW}zsh is already the default shell for ${target_user}. No changes made.${RESET}"
     fi
 }
 
 function configure_git () {
     [ ! -e ~/.gitconfig.local ] && touch ~/.gitconfig.local
-    git submodule sync --quiet --recursive
-    git submodule update --init --recursive
     echo -e "${GREEN}Git successfully configured!${RESET}"
 }
 
 function configure_wsl() {
-    if grep -qi microsoft /proc/version && [[ ! -e /etc/wsl.conf ]]; then
-        sudo cp "${DOTFILES_DIR}/config/wsl/wsl.conf" /etc/wsl.conf
-        echo -e "${GREEN}wsl.conf configured successfully!${RESET}"
+    if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
+        echo -e "${YELLOW}Skipping WSL system configuration in non-interactive mode.${RESET}"
+        return
+    fi
+
+    local desired="${REPO_ROOT}/assets/wsl/wsl.conf"
+    if grep -qi microsoft /proc/version && [ -f "$desired" ]; then
+        if [ ! -f /etc/wsl.conf ] || ! cmp -s "$desired" /etc/wsl.conf; then
+            sudo install -m 0644 "$desired" /etc/wsl.conf
+            echo -e "${GREEN}wsl.conf configured successfully!${RESET}"
+        else
+            echo -e "${YELLOW}wsl.conf already matches the desired configuration.${RESET}"
+        fi
     fi
 }
 
@@ -454,6 +430,11 @@ function install_dagger () {
 }
 
 function install_optional_packages () {
+    if [[ "${DOTFILES_NONINTERACTIVE:-0}" == "1" ]]; then
+        echo -e "${YELLOW}Skipping optional package selection in non-interactive mode.${RESET}"
+        return
+    fi
+
     local packages=(
         "mise-en-place|deb:check_package_or_run mise install_mise_en_place|arch:install_with_pacman mise"
         "docker|deb:check_package_or_run docker install_docker|arch:install_with_pacman docker"
@@ -520,9 +501,16 @@ function install_optional_packages () {
 parse_args "$@"
 pre_setup_tasks
 configure_git
-configure_wsl
-install_must_have_packages
-setup_dot_files
-setup_sheldon_plugins
-setup_default_shell
-install_optional_packages
+if ! ${CORE_ONLY}; then
+    configure_wsl
+    install_must_have_packages
+    setup_sheldon_plugins
+    if [[ "${DOTFILES_NONINTERACTIVE:-0}" != "1" ]]; then
+        setup_default_shell
+    else
+        echo -e "${YELLOW}Skipping default-shell change in non-interactive mode.${RESET}"
+    fi
+    install_optional_packages
+else
+    echo -e "${YELLOW}Skipping workstation package catalog in core-only mode.${RESET}"
+fi

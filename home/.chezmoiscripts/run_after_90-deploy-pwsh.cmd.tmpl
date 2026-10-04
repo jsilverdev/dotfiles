@@ -1,0 +1,19 @@
+{{- if eq .chezmoi.os "windows" }}
+@echo off
+setlocal EnableExtensions
+
+set "REPO_ROOT={{ .chezmoi.workingTree }}"
+if not defined REPO_ROOT for /f "delims=" %%R in ('chezmoi execute-template "{{ .chezmoi.workingTree }}" 2^>nul') do set "REPO_ROOT=%%R"
+if not defined REPO_ROOT set "REPO_ROOT={{ .chezmoi.sourceDir }}"
+if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" for /f "delims=" %%S in ('chezmoi source-path 2^>nul') do set "REPO_ROOT=%%S"
+if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" for %%P in ("%REPO_ROOT%\..") do set "REPO_ROOT=%%~fP"
+for %%P in ("%REPO_ROOT%") do set "REPO_ROOT=%%~fP"
+
+if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" (
+    echo Unable to locate the dotfiles working tree: "%REPO_ROOT%" 1>&2
+    exit /b 1
+)
+
+call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\scripts\windows\deploy-pwsh.ps1" -RepoRoot "%REPO_ROOT%"
+exit /b %ERRORLEVEL%
+{{- end }}

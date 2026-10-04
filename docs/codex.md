@@ -1,16 +1,16 @@
 # Codex dotfiles
 
-This directory contains only portable Codex defaults. Dotbot links stable
-guidance and skills to `~/.codex`; mutable files are copied only when missing.
+This directory contains only portable Codex defaults. Chezmoi deploys stable
+guidance and skills to `~/.codex`; mutable files are created only when missing.
 
 ## Included
 
-- `config.toml.example`: initial UI, sandbox, features, and default reasoning
-  effort. The installer copies it to `~/.codex/config.toml` only when missing.
+- `create_config.toml`: initial UI, sandbox, features, and default reasoning
+  effort. Chezmoi creates it as `~/.codex/config.toml` only when missing.
 - `AGENTS.md`: personal working conventions that apply to every repository.
-- `rules/default.rules.example`: initial narrowly scoped command approvals.
+- `rules/create_default.rules`: initial narrowly scoped command approvals.
 - `skills/*`: the individual files of every skill placed in this directory are
-  linked to `~/.codex/skills`, including the bundled `mule-munit` workflow.
+  deployed to `~/.codex/skills`, including the bundled `mule-munit` workflow.
 
 ## Deliberately excluded
 
