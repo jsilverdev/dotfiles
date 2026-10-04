@@ -777,9 +777,8 @@ jobs:
         env:
           DOTFILES_NONINTERACTIVE: '1'
           DOTFILES_CORE_ONLY: '1'
+          DOTFILES_BOOTSTRAP_DIAGNOSTICS: '1'
         run: |
-          $stageFile = Join-Path $env:RUNNER_TEMP 'allsigned-bootstrap-stage.txt'
-          $env:DOTFILES_BOOTSTRAP_STAGE_FILE = $stageFile
           $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
           New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
           Push-Location $runDirectory
@@ -790,70 +789,64 @@ jobs:
           finally {
             Pop-Location
           }
-          $stage = if (Test-Path -LiteralPath $stageFile) {
-            (Get-Content -LiteralPath $stageFile -Raw).Trim()
-          } else {
-            'unknown'
-          }
-          "stage=$stage" | Add-Content -Path $env:GITHUB_OUTPUT
           "exit_code=$exitCode" | Add-Content -Path $env:GITHUB_OUTPUT
-          Write-Host "AllSigned bootstrap stage=$stage exit=$exitCode"
+          Write-Host "AllSigned bootstrap exit=$exitCode"
           if ($exitCode -ne 0) {
-            throw "bootstrap.cmd failed during stage '$stage' with exit code $exitCode"
+            throw "bootstrap.cmd failed with diagnostic exit code $exitCode"
           }
 
       - name: AllSigned bootstrap failed during legacy cleanup
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'cleanup'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '11'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed while validating WinGet
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'winget'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '12'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed while ensuring Git
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'ensure_git'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '21'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed while ensuring PowerShell 7
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'ensure_pwsh'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '22'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed while ensuring mise
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'ensure_mise'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '23'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed while ensuring chezmoi
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'ensure_chezmoi'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '24'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed while refreshing PATH
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'refresh_path'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '25'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed during chezmoi init/apply
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'initialize_chezmoi'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '31'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed resolving the repo root
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'resolve_repo_root'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '32'
         shell: cmd
         run: exit /b 1
 
       - name: AllSigned bootstrap failed inside install.ps1
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.stage == 'install'
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '40'
         shell: cmd
         run: exit /b 1
 
-      - name: AllSigned bootstrap failed at an unknown stage
-        if: steps.allsigned_bootstrap.outcome == 'failure' && !contains(fromJSON('["cleanup","winget","ensure_git","ensure_pwsh","ensure_mise","ensure_chezmoi","refresh_path","initialize_chezmoi","resolve_repo_root","install"]'), steps.allsigned_bootstrap.outputs.stage)
+      - name: AllSigned bootstrap failed with an unmapped diagnostic code
+        if: steps.allsigned_bootstrap.outcome == 'failure' && !contains(fromJSON('["11","12","21","22","23","24","25","31","32","40"]'), steps.allsigned_bootstrap.outputs.exit_code)
         shell: cmd
         run: exit /b 1
 

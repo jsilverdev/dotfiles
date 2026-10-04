@@ -7,65 +7,81 @@ if defined DOTFILES_REPO (
     set "REPO_URL=https://github.com/jsilverdev/dotfiles.git"
 )
 
-call :mark_stage cleanup
+set "BOOTSTRAP_FAILURE_CODE=11"
 call :remove_legacy_broken_links
-if errorlevel 1 exit /b 1
+if errorlevel 1 goto bootstrap_failed
 
-call :mark_stage winget
+set "BOOTSTRAP_FAILURE_CODE=12"
 where winget.exe >nul 2>&1
 if errorlevel 1 (
     echo WinGet is not registered for this user. Attempting App Installer registration...
     "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe"
     if errorlevel 1 (
         echo App Installer registration failed. WinGet may be disabled by corporate policy. 1>&2
-        exit /b 1
+        goto bootstrap_failed
     )
 )
 where winget.exe >nul 2>&1
 if errorlevel 1 (
     echo WinGet is unavailable after App Installer registration. Check corporate policy or App Installer registration. 1>&2
-    exit /b 1
+    goto bootstrap_failed
 )
 
-call :mark_stage ensure_git
+set "BOOTSTRAP_FAILURE_CODE=21"
 call :ensure_package Git.Git git
-if errorlevel 1 exit /b 1
-call :mark_stage ensure_pwsh
+if errorlevel 1 goto bootstrap_failed
+set "BOOTSTRAP_FAILURE_CODE=22"
 call :ensure_package Microsoft.PowerShell pwsh
-if errorlevel 1 exit /b 1
-call :mark_stage ensure_mise
+if errorlevel 1 goto bootstrap_failed
+set "BOOTSTRAP_FAILURE_CODE=23"
 call :ensure_package jdx.mise mise
-if errorlevel 1 exit /b 1
-call :mark_stage ensure_chezmoi
+if errorlevel 1 goto bootstrap_failed
+set "BOOTSTRAP_FAILURE_CODE=24"
 call :ensure_package twpayne.chezmoi chezmoi
-if errorlevel 1 exit /b 1
+if errorlevel 1 goto bootstrap_failed
 
-call :mark_stage refresh_path
+set "BOOTSTRAP_FAILURE_CODE=25"
 call :refresh_path
-where git.exe >nul 2>&1 || (echo Git is still unavailable after installation. 1>&2 & exit /b 1)
-where pwsh.exe >nul 2>&1 || (echo PowerShell 7 is still unavailable after installation. 1>&2 & exit /b 1)
-where mise.exe >nul 2>&1 || (echo mise is still unavailable after installation. 1>&2 & exit /b 1)
-where chezmoi.exe >nul 2>&1 || (echo chezmoi is still unavailable after installation. 1>&2 & exit /b 1)
+where git.exe >nul 2>&1
+if errorlevel 1 (
+    echo Git is still unavailable after installation. 1>&2
+    goto bootstrap_failed
+)
+where pwsh.exe >nul 2>&1
+if errorlevel 1 (
+    echo PowerShell 7 is still unavailable after installation. 1>&2
+    goto bootstrap_failed
+)
+where mise.exe >nul 2>&1
+if errorlevel 1 (
+    echo mise is still unavailable after installation. 1>&2
+    goto bootstrap_failed
+)
+where chezmoi.exe >nul 2>&1
+if errorlevel 1 (
+    echo chezmoi is still unavailable after installation. 1>&2
+    goto bootstrap_failed
+)
 
-call :mark_stage initialize_chezmoi
+set "BOOTSTRAP_FAILURE_CODE=31"
 call :initialize_chezmoi
 if errorlevel 1 (
     echo chezmoi initialization/update failed. 1>&2
-    exit /b 1
+    goto bootstrap_failed
 )
 
-call :mark_stage resolve_repo_root
+set "BOOTSTRAP_FAILURE_CODE=32"
 call :resolve_repo_root
 if not defined REPO_ROOT (
     echo Unable to resolve the chezmoi working tree. 1>&2
-    exit /b 1
+    goto bootstrap_failed
 )
 if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" (
     echo Resolved chezmoi working tree does not contain the dotfiles scripts: "%REPO_ROOT%" 1>&2
-    exit /b 1
+    goto bootstrap_failed
 )
 
-call :mark_stage install
+set "BOOTSTRAP_FAILURE_CODE=40"
 if /I "%DOTFILES_NONINTERACTIVE%"=="1" if /I "%DOTFILES_CORE_ONLY%"=="1" (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -CoreOnly -RepoRoot "%REPO_ROOT%"
 ) else if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
@@ -75,14 +91,12 @@ if /I "%DOTFILES_NONINTERACTIVE%"=="1" if /I "%DOTFILES_CORE_ONLY%"=="1" (
 ) else (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -RepoRoot "%REPO_ROOT%"
 )
-set "BOOTSTRAP_EXIT=%ERRORLEVEL%"
-if not "%BOOTSTRAP_EXIT%"=="0" exit /b %BOOTSTRAP_EXIT%
-call :mark_stage complete
+if errorlevel 1 goto bootstrap_failed
 exit /b 0
 
-:mark_stage
-if defined DOTFILES_BOOTSTRAP_STAGE_FILE >"%DOTFILES_BOOTSTRAP_STAGE_FILE%" echo %~1
-exit /b 0
+:bootstrap_failed
+if /I "%DOTFILES_BOOTSTRAP_DIAGNOSTICS%"=="1" exit /b %BOOTSTRAP_FAILURE_CODE%
+exit /b 1
 
 :ensure_package
 set "PACKAGE_ID=%~1"
