@@ -317,14 +317,37 @@ function Install-UserFonts {
     $sourceDir = Join-Path $RepoRoot "fonts"
     $userFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
     $fontRegistryKey = "HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
-    if (-not (Test-Path -LiteralPath $sourceDir -PathType Container)) { throw "Font source directory not found: $sourceDir" }
+
+    if (-not (Test-Path -LiteralPath $sourceDir -PathType Container)) {
+        throw "Font source directory not found: $sourceDir"
+    }
+
     New-Item -ItemType Directory -Path $userFontsDir -Force | Out-Null
+    New-Item -Path $fontRegistryKey -Force | Out-Null
+
     $sourceFonts = @(Get-ChildItem -Path $sourceDir -Include *.otc,*.otf,*.ttc,*.ttf -Recurse -File)
+    if ($sourceFonts.Count -eq 0) {
+        throw "No font files were downloaded to $sourceDir."
+    }
+
     foreach ($font in $sourceFonts | Sort-Object Name -Unique) {
         $destination = Join-Path $userFontsDir $font.Name
-        if (Test-Path -LiteralPath $destination) { continue }
-        Copy-Item -LiteralPath $font.FullName -Destination $destination
-        New-ItemProperty -Path $fontRegistryKey -Name "$($font.Name) (dotfiles)" -Value $destination -PropertyType String -Force | Out-Null
+        $registryName = "$($font.Name) (dotfiles)"
+
+        if (-not (Test-Path -LiteralPath $destination -PathType Leaf)) {
+            Copy-Item -LiteralPath $font.FullName -Destination $destination
+        }
+
+        $registeredPath = $null
+        try {
+            $registeredPath = Get-ItemPropertyValue -Path $fontRegistryKey -Name $registryName -ErrorAction Stop
+        }
+        catch {
+        }
+
+        if ($registeredPath -ne $destination) {
+            New-ItemProperty -Path $fontRegistryKey -Name $registryName -Value $destination -PropertyType String -Force | Out-Null
+        }
     }
 }
 
@@ -357,10 +380,8 @@ function Configure-Wsl {
 Refresh-Path
 Check-RequiredApps
 
-if (-not $NonInteractive) {
-    Download-Fonts
-    Install-UserFonts
-}
+Download-Fonts
+Install-UserFonts
 
 Configure-Git
 Install-MustHaveApps
@@ -370,7 +391,7 @@ if (-not $NonInteractive) {
     Install-OptionalApps
 }
 else {
-    Write-Host "Skipping fonts, terminal configuration, and optional applications in non-interactive mode." -ForegroundColor Yellow
+    Write-Host "Skipping terminal configuration and optional applications in non-interactive mode." -ForegroundColor Yellow
 }
 
 Configure-Wsl
