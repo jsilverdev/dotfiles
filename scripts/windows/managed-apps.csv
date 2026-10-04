@@ -1,0 +1,25 @@
+Category,Name,AppId,Alias,Scope
+core,micro,zyedidia.micro,micro,user
+core,lsd,lsd-rs.lsd,lsd,user
+core,bat,sharkdp.bat,bat,user
+core,fastfetch,Fastfetch-cli.Fastfetch,fastfetch,user
+core,fzf,junegunn.fzf,fzf,user
+core,fd,sharkdp.fd,fd,user
+core,delta,dandavison.delta,delta,user
+core,jq,jqlang.jq,jq,user
+core,ripgrep,BurntSushi.ripgrep.MSVC,rg,user
+core,mise,jdx.mise,mise,user
+workstation,7-Zip,7zip.7zip,,
+workstation,PowerToys,Microsoft.PowerToys,,
+workstation,Visual Studio Code,Microsoft.VisualStudioCode,code,user
+optional,Google Chrome,Google.Chrome,,
+optional,KeePassXC,KeePassXCTeam.KeePassXC,,
+optional,DBeaver,dbeaver.dbeaver,,
+optional,Postman,Postman.Postman,,
+optional,Bruno,Bruno.Bruno,,
+optional,kubectl,Kubernetes.kubectl,kubectl,
+optional,GIMP,GIMP.GIMP,,
+optional,Android Studio,Google.AndroidStudio,,
+optional,Steam,Valve.Steam,,
+optional,Discord,Discord.Discord,,
+optional,npiperelay,albertony.npiperelay,npiperelay,

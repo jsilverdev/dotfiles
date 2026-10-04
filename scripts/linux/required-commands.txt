@@ -1,0 +1,19 @@
+# Each line is a logical requirement. Alternatives are separated by |.
+git
+curl
+zsh
+micro
+jq
+tree
+python3|python
+bat|batcat
+fd|fdfind
+strings
+rg
+fastfetch
+lsd
+fzf
+vivid
+delta
+starship
+sheldon

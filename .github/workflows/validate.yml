@@ -1,0 +1,157 @@
+name: Validate dotfiles
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install validation tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends shellcheck
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsLS https://get.chezmoi.io | sh -s -- -b "$RUNNER_TEMP/bin"
+
+          actionlint_version=1.7.12
+          actionlint_archive="$RUNNER_TEMP/actionlint.tar.gz"
+          curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${actionlint_version}/actionlint_${actionlint_version}_linux_amd64.tar.gz" -o "$actionlint_archive"
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  $actionlint_archive" | sha256sum --check
+          tar -xzf "$actionlint_archive" -C "$RUNNER_TEMP/bin" actionlint
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Validate workflow
+        run: actionlint .github/workflows/validate.yml
+
+      - name: Validate shell source
+        run: bash tests/static/validate-source.sh shell
+
+      - name: Validate chezmoi source
+        run: bash tests/static/validate-source.sh chezmoi
+
+      - name: Validate source architecture
+        run: python3 tests/static/validate-architecture.py
+
+      - name: Validate manifests
+        run: python3 tests/static/validate-manifests.py
+
+      - name: Validate encoded PowerShell bridge
+        run: python3 tests/static/check-powershell-bridge.py
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: ./tests/static/validate-powershell.ps1
+
+  linux:
+    name: linux-${{ matrix.distro }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian
+            image: debian:bookworm-slim
+          - distro: arch
+            image: archlinux:base
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - name: Prepare container
+        shell: sh
+        run: |
+          set -eu
+          case "${{ matrix.distro }}" in
+            debian) apt-get update; apt-get install --yes --no-install-recommends ca-certificates curl git sudo bash ;;
+            arch) pacman -Sy --noconfirm ca-certificates curl git sudo bash ;;
+          esac
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Exercise bootstrap and update
+        run: bash tests/linux/run-ci.sh "${{ matrix.distro }}" "$GITHUB_SHA"
+
+  windows:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      DOTFILES_NONINTERACTIVE: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - shell: pwsh
+        run: ./tests/windows/prepare-ci.ps1
+      - name: Run bootstrap
+        shell: cmd
+        run: |
+          mkdir "%RUNNER_TEMP%\dotfiles-run" 2>nul
+          pushd "%RUNNER_TEMP%\dotfiles-run"
+          call "%GITHUB_WORKSPACE%\bootstrap.cmd"
+          set "E=%ERRORLEVEL%"
+          popd
+          exit /b %E%
+      - shell: pwsh
+        run: ./tests/windows/assert-state.ps1 -RepoRoot $env:GITHUB_WORKSPACE -ExpectedCommit $env:GITHUB_SHA
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\tests\windows\create-update-fixture.cmd"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\update.cmd"
+      - shell: pwsh
+        run: ./tests/windows/assert-state.ps1 -RepoRoot $env:GITHUB_WORKSPACE -UpdateMarker $env:UPDATE_MARKER
+
+  windows-allsigned:
+    runs-on: windows-2025
+    timeout-minutes: 50
+    env:
+      DOTFILES_NONINTERACTIVE: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - shell: pwsh
+        run: ./tests/windows/prepare-ci.ps1
+      - shell: pwsh
+        run: ./tests/windows/enable-allsigned.ps1
+      - shell: cmd
+        run: pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
+      - name: Run bootstrap under AllSigned
+        shell: cmd
+        run: |
+          mkdir "%RUNNER_TEMP%\dotfiles-run" 2>nul
+          pushd "%RUNNER_TEMP%\dotfiles-run"
+          call "%GITHUB_WORKSPACE%\bootstrap.cmd"
+          set "E=%ERRORLEVEL%"
+          popd
+          exit /b %E%
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\tests\windows\create-update-fixture.cmd"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\update.cmd"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt" -UpdateMarker "%UPDATE_MARKER%"

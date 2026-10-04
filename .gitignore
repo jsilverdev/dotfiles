@@ -1,10 +1,10 @@
 .vscode
 
 # Auto-generated files
-config/zsh/.zcompcache/*
-config/zsh/.zcompdump*
-config/zsh/.zhistory
-config/zsh/*/*.zwc
-config/zsh/.zsh_sessions/*
+home/dot_config/zsh/.zcompcache/*
+home/dot_config/zsh/.zcompdump*
+home/dot_config/zsh/.zhistory
+home/dot_config/zsh/*/*.zwc
+home/dot_config/zsh/.zsh_sessions/*
 
 fonts/
