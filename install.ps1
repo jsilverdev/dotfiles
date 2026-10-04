@@ -76,6 +76,45 @@ function Invoke-SigningHelper {
         throw "The centralized PowerShell signing helper failed for $Action."
     }
 }
+function Save-ManagedModuleForAllSigned {
+    param([Parameter(Mandatory)][string]$Name)
+
+    $windowsPowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    if (-not (Test-Path -LiteralPath $windowsPowerShell -PathType Leaf)) {
+        throw "Windows PowerShell is required to provision modules under AllSigned."
+    }
+
+    # Download directly into the PowerShell 7 current-user module root without
+    # loading PowerShellGet or PackageManagement inside pwsh under AllSigned.
+    $moduleRoot = Join-Path $HOME "Documents\PowerShell\Modules"
+    New-Item -ItemType Directory -Path $moduleRoot -Force | Out-Null
+
+    $escapedName = $Name.Replace("'", "''")
+    $escapedRoot = $moduleRoot.Replace("'", "''")
+    $command = @(
+        "$ErrorActionPreference = 'Stop'"
+        "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12"
+        "Save-Module -Name '$escapedName' -Path '$escapedRoot' -Repository PSGallery -Force -AcceptLicense"
+    ) -join [Environment]::NewLine
+    $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+
+    $originalPSModulePath = $env:PSModulePath
+    try {
+        $env:PSModulePath = @(
+            (Join-Path $HOME "Documents\WindowsPowerShell\Modules")
+            (Join-Path $env:ProgramFiles "WindowsPowerShell\Modules")
+            (Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\Modules")
+        ) -join [IO.Path]::PathSeparator
+
+        & $windowsPowerShell -NoProfile -NonInteractive -EncodedCommand $encodedCommand
+        if ($LASTEXITCODE -ne 0) {
+            throw "Windows PowerShell could not save module '$Name' for PowerShell 7 (exit code $LASTEXITCODE)."
+        }
+    }
+    finally {
+        $env:PSModulePath = $originalPSModulePath
+    }
+}
 
 function Install-WithWinget {
     param(
@@ -169,18 +208,29 @@ function Install-MustHaveApps {
         if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
     }
 
+    $allSigned = (Get-ExecutionPolicy) -eq "AllSigned"
     foreach ($module in $ManagedModules) {
         $installedModule = Get-Module -ListAvailable -Name $module | Select-Object -First 1
-        $installedResource = if (Get-Command Get-InstalledPSResource -ErrorAction SilentlyContinue) {
-            Get-InstalledPSResource -Name $module -ErrorAction SilentlyContinue | Select-Object -First 1
+        $installedResource = $null
+        if (-not $allSigned -and (Get-Command Get-InstalledPSResource -ErrorAction SilentlyContinue)) {
+            $installedResource = Get-InstalledPSResource -Name $module -ErrorAction SilentlyContinue | Select-Object -First 1
         }
+
         if ($null -eq $installedModule) {
             Write-Host "Installing $module module..." -ForegroundColor Cyan
-            Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false
+            if ($allSigned) {
+                Save-ManagedModuleForAllSigned -Name $module
+            }
+            else {
+                Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false
+            }
         }
         elseif ($Update -and -not $CoreOnly) {
             Write-Host "Updating $module module..." -ForegroundColor Yellow
-            if ($null -ne $installedResource -and (Get-Command Update-PSResource -ErrorAction SilentlyContinue)) {
+            if ($allSigned) {
+                Save-ManagedModuleForAllSigned -Name $module
+            }
+            elseif ($null -ne $installedResource -and (Get-Command Update-PSResource -ErrorAction SilentlyContinue)) {
                 Update-PSResource -Name $module -Scope CurrentUser -Force
             }
             else {
@@ -190,6 +240,7 @@ function Install-MustHaveApps {
         else {
             Write-Host "$module module is already installed" -ForegroundColor Green
         }
+
         Invoke-SigningHelper -Action ProtectModule -ModuleName $module
     }
 }
