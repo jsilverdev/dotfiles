@@ -43,8 +43,10 @@ function Invoke-Chezmoi([string[]]$Arguments) {
 }
 
 function Assert-CleanChezMoi {
-    $status = @(Invoke-Chezmoi @("status"))
-    if ($status.Count -ne 0) { Fail "chezmoi status is not clean: $($status -join [Environment]::NewLine)" }
+    # Always-run scripts intentionally appear as "R" in chezmoi status.
+    # Exclude scripts so this assertion checks only declarative target drift.
+    $status = @(Invoke-Chezmoi @("status", "--exclude=scripts"))
+    if ($status.Count -ne 0) { Fail "chezmoi target state is not clean: $($status -join [Environment]::NewLine)" }
 }
 
 $sourcePath = ((Invoke-Chezmoi @("source-path")) -join "").Trim()
