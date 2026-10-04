@@ -577,49 +577,57 @@ jobs:
           Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Value $certificate.Thumbprint -NoNewline
           Export-Certificate -Cert $certificate -FilePath (Join-Path $env:RUNNER_TEMP 'dotfiles-signing.cer') -Type CERT -Force | Out-Null
 
-      - name: Trust CI code-signing certificate for current user
-        id: trust_certificate
-        continue-on-error: true
-        shell: cmd
-        timeout-minutes: 1
-        run: |
-          certutil.exe -user -f -addstore TrustedPublisher "%RUNNER_TEMP%\dotfiles-signing.cer"
-          if errorlevel 1 exit /b 1
-          certutil.exe -user -f -addstore Root "%RUNNER_TEMP%\dotfiles-signing.cer"
-          if errorlevel 1 exit /b 1
-
-      - name: Validate AllSigned prerequisites when Root trust is unavailable
-        if: steps.trust_certificate.outcome != 'success'
+      - name: Trust and verify CI code-signing certificate for current user
         shell: pwsh
         run: |
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'dotfiles-signing.cer'
           $thumbprint = (Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Raw).Trim()
-          $certificate = Get-ChildItem Cert:\CurrentUser\My | Where-Object Thumbprint -eq $thumbprint | Select-Object -First 1
-          if ($null -eq $certificate -or -not $certificate.HasPrivateKey) {
-            throw 'CI code-signing certificate is unavailable'
+          $publicCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
+          if ($publicCertificate.Thumbprint -ne $thumbprint) {
+            throw "exported CI certificate thumbprint does not match: $($publicCertificate.Thumbprint)"
+          }
+
+          foreach ($storeName in @('Root', 'TrustedPublisher')) {
+            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+              $storeName,
+              [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+            )
+            try {
+              $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+              $existing = $store.Certificates | Where-Object Thumbprint -eq $thumbprint | Select-Object -First 1
+              if ($null -eq $existing) {
+                $store.Add($publicCertificate)
+              }
+            }
+            finally {
+              $store.Close()
+            }
+
+            $trusted = Get-ChildItem "Cert:\CurrentUser\$storeName" |
+              Where-Object Thumbprint -eq $thumbprint |
+              Select-Object -First 1
+            if ($null -eq $trusted) {
+              throw "CI code-signing certificate was not trusted in CurrentUser\$storeName"
+            }
+          }
+
+          $signingCertificate = Get-ChildItem Cert:\CurrentUser\My |
+            Where-Object Thumbprint -eq $thumbprint |
+            Select-Object -First 1
+          if ($null -eq $signingCertificate -or -not $signingCertificate.HasPrivateKey) {
+            throw 'CI code-signing certificate with private key is unavailable'
           }
 
           $smoke = Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'
-          $signed = Set-AuthenticodeSignature -FilePath $smoke -Certificate $certificate -HashAlgorithm SHA256
+          Set-AuthenticodeSignature -FilePath $smoke -Certificate $signingCertificate -HashAlgorithm SHA256 | Out-Null
           $signature = Get-AuthenticodeSignature -FilePath $smoke
-          if ($null -eq $signature.SignerCertificate -or $signature.SignerCertificate.Thumbprint -ne $thumbprint) {
-            throw "AuthentiCode signing did not use the expected certificate: $($signed.Status)"
-          }
-
-          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
-          try {
-            $currentUser = Get-ExecutionPolicy -Scope CurrentUser
-            $effective = Get-ExecutionPolicy
-            if ($currentUser -ne 'AllSigned' -or $effective -ne 'AllSigned') {
-              throw "unable to establish CurrentUser AllSigned: CurrentUser=$currentUser Effective=$effective"
-            }
-            Write-Warning 'Hosted runner blocked non-interactive CurrentUser Root trust. Full trusted-publisher execution is skipped; certificate creation, Authenticode signing, and AllSigned policy persistence were validated.'
-          }
-          finally {
-            Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Undefined -Force
+          if ($signature.Status -ne 'Valid' -or
+              $null -eq $signature.SignerCertificate -or
+              $signature.SignerCertificate.Thumbprint -ne $thumbprint) {
+            throw "trusted CI Authenticode signature is not valid: $($signature.Status) $($signature.StatusMessage)"
           }
 
       - name: Enable and prove CurrentUser AllSigned
-        if: steps.trust_certificate.outcome == 'success'
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
@@ -632,14 +640,12 @@ jobs:
           }
 
       - name: Smoke-test signing bridge under AllSigned
-        if: steps.trust_certificate.outcome == 'success'
         shell: cmd
         run: |
           call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
           if errorlevel 1 exit /b 1
 
       - name: Run the real bootstrap through CMD and the signing bridge
-        if: steps.trust_certificate.outcome == 'success'
         shell: cmd
         env:
           DOTFILES_NONINTERACTIVE: '1'
@@ -653,14 +659,12 @@ jobs:
           popd
 
       - name: Assert signed runtime and module state through the bridge
-        if: steps.trust_certificate.outcome == 'success'
         shell: cmd
         run: |
           call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt"
           if errorlevel 1 exit /b 1
 
       - name: Create an update commit without changing the Actions checkout
-        if: steps.trust_certificate.outcome == 'success'
         shell: cmd
         run: |
           set "UPDATE_CLONE=%RUNNER_TEMP%\dotfiles-update"
@@ -677,7 +681,6 @@ jobs:
           echo UPDATE_MARKER=%UPDATE_MARKER%>>"%GITHUB_ENV%"
 
       - name: Exercise update.cmd and recheck AllSigned idempotency
-        if: steps.trust_certificate.outcome == 'success'
         shell: cmd
         env:
           DOTFILES_NONINTERACTIVE: '1'

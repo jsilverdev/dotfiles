@@ -25,12 +25,21 @@ if (-not (Test-Path -LiteralPath $managedModulesPath -PathType Leaf)) {
 $ManagedModules = @(Get-Content -LiteralPath $managedModulesPath | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
 
 function Refresh-Path {
-    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    $env:Path = @($env:Path, $machinePath, $userPath) |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-        Select-Object -Unique |
-        Join-String -Separator ";"
+    $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $pathEntries = foreach ($pathValue in @(
+        $PSHOME
+        $env:Path
+        [Environment]::GetEnvironmentVariable("Path", "Machine")
+        [Environment]::GetEnvironmentVariable("Path", "User")
+    )) {
+        if ([string]::IsNullOrWhiteSpace($pathValue)) { continue }
+        foreach ($entry in $pathValue -split [IO.Path]::PathSeparator) {
+            $entry = $entry.Trim()
+            if ($entry -and $seen.Add($entry)) { $entry }
+        }
+    }
+
+    $env:Path = $pathEntries -join [IO.Path]::PathSeparator
 }
 
 function Check-RequiredApps {
