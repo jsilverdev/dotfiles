@@ -81,6 +81,7 @@ function Install-WithWinget {
     param(
         [Parameter(Mandatory)][string]$AppId,
         [string]$Alias,
+        [ValidateSet("user", "machine")][string]$Scope,
         [switch]$Update
     )
 
@@ -93,14 +94,25 @@ function Install-WithWinget {
         $installed = $LASTEXITCODE -eq 0
     }
 
+    $wingetArgs = @(
+        "--id", $AppId,
+        "--exact",
+        "--source", "winget",
+        "--silent",
+        "--disable-interactivity",
+        "--accept-source-agreements",
+        "--accept-package-agreements"
+    )
+    if ($Scope) { $wingetArgs += @("--scope", $Scope) }
+
     if (-not $installed) {
         Write-Host "Installing $AppId..." -ForegroundColor Cyan
-        & winget install --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+        & winget install @wingetArgs
         if ($LASTEXITCODE -ne 0) { throw "WinGet could not install $AppId." }
     }
     elseif ($Update) {
         Write-Host "Updating $AppId..." -ForegroundColor Yellow
-        & winget upgrade --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+        & winget upgrade @wingetArgs
         if ($LASTEXITCODE -ne 0) { throw "WinGet could not update $AppId." }
     }
     else {
@@ -111,40 +123,47 @@ function Install-WithWinget {
 function Install-MustHaveApps {
     Write-Host "Installing must-have apps..." -ForegroundColor Cyan
 
-    if ($CoreOnly) {
-        Write-Host "Skipping workstation WinGet catalog in core-only mode." -ForegroundColor Yellow
-        Refresh-Path
-        if (Get-Command mise -ErrorAction SilentlyContinue) {
-            & mise which starship *> $null
-            if ($LASTEXITCODE -ne 0) {
-                & mise use -g starship@latest
-                if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
-            }
+    $corePackages = @(
+        @{ AppId = "zyedidia.micro"; Alias = "micro" },
+        @{ AppId = "lsd-rs.lsd"; Alias = "lsd" },
+        @{ AppId = "sharkdp.bat"; Alias = "bat" },
+        @{ AppId = "Fastfetch-cli.Fastfetch"; Alias = "fastfetch" },
+        @{ AppId = "junegunn.fzf"; Alias = "fzf" },
+        @{ AppId = "sharkdp.fd"; Alias = "fd" },
+        @{ AppId = "dandavison.delta"; Alias = "delta" },
+        @{ AppId = "jqlang.jq"; Alias = "jq" },
+        @{ AppId = "BurntSushi.ripgrep.MSVC"; Alias = "rg" },
+        @{ AppId = "jdx.mise"; Alias = "mise" }
+    )
+    $workstationPackages = @(
+        @{ AppId = "7zip.7zip"; Alias = $null },
+        @{ AppId = "Microsoft.PowerToys"; Alias = $null },
+        @{ AppId = "Microsoft.VisualStudioCode"; Alias = "code" }
+    )
+
+    foreach ($package in $corePackages) {
+        Install-WithWinget -AppId $package.AppId -Alias $package.Alias -Scope user -Update:$Update
+    }
+    if (-not $CoreOnly) {
+        foreach ($package in $workstationPackages) {
+            Install-WithWinget -AppId $package.AppId -Alias $package.Alias -Update:$Update
         }
     }
     else {
-        $installs = @(
-            { Install-WithWinget -AppId "7zip.7zip" -Update:$Update },
-            { Install-WithWinget -AppId "Microsoft.PowerToys" -Update:$Update },
-            { Install-WithWinget -AppId "zyedidia.micro" -Alias "micro" -Update:$Update },
-            { Install-WithWinget -AppId "lsd-rs.lsd" -Alias "lsd" -Update:$Update },
-            { Install-WithWinget -AppId "sharkdp.bat" -Alias "bat" -Update:$Update },
-            { Install-WithWinget -AppId "Fastfetch-cli.Fastfetch" -Alias "fastfetch" -Update:$Update },
-            { Install-WithWinget -AppId "junegunn.fzf" -Alias "fzf" -Update:$Update },
-            { Install-WithWinget -AppId "sharkdp.fd" -Alias "fd" -Update:$Update },
-            { Install-WithWinget -AppId "dandavison.delta" -Alias "delta" -Update:$Update },
-            { Install-WithWinget -AppId "jqlang.jq" -Alias "jq" -Update:$Update },
-            { Install-WithWinget -AppId "Microsoft.VisualStudioCode" -Alias "code" -Update:$Update },
-            { Install-WithWinget -AppId "BurntSushi.ripgrep.MSVC" -Alias "rg" -Update:$Update },
-            { Install-WithWinget -AppId "jdx.mise" -Alias "mise" -Update:$Update }
-        )
-        foreach ($install in $installs) { & $install }
+        Write-Host "Skipping workstation-only WinGet packages in core-only mode." -ForegroundColor Yellow
+    }
 
-        Refresh-Path
-        if (Get-Command mise -ErrorAction SilentlyContinue) {
-            & mise use -g starship@latest
-            if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
+    Refresh-Path
+    foreach ($command in @("micro", "lsd", "bat", "fastfetch", "fzf", "fd", "delta", "jq", "rg", "mise")) {
+        if (-not (Get-Command -Name $command -ErrorAction SilentlyContinue)) {
+            throw "Core CLI tool '$command' is unavailable after WinGet provisioning."
         }
+    }
+
+    & mise which starship *> $null
+    if ($LASTEXITCODE -ne 0) {
+        & mise use -g starship@latest
+        if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
     }
 
     foreach ($module in $ManagedModules) {

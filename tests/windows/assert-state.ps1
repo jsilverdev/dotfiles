@@ -64,6 +64,12 @@ if ($ExpectedCommit) {
     if ($LASTEXITCODE -ne 0 -or $sourceCommit -ne $ExpectedCommit) { Fail "source commit $sourceCommit is not expected commit $ExpectedCommit" }
 }
 
+foreach ($command in @("micro", "lsd", "bat", "fastfetch", "fzf", "fd", "delta", "jq", "rg", "mise")) {
+    if (-not (Get-Command -Name $command -ErrorAction SilentlyContinue)) {
+        Fail "core CLI tool is unavailable: $command"
+    }
+}
+
 Invoke-Chezmoi @("apply") | Out-Host
 Invoke-Chezmoi @("apply") | Out-Host
 Assert-CleanChezMoi

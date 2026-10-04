@@ -61,6 +61,11 @@ function Assert-CleanChezMoi {
 
 $sourcePath = ((Invoke-Chezmoi @("source-path")) -join "").Trim()
 Write-Host "chezmoi source-path: $sourcePath"
+foreach ($command in @("micro", "lsd", "bat", "fastfetch", "fzf", "fd", "delta", "jq", "rg", "mise")) {
+    if (-not (Get-Command -Name $command -ErrorAction SilentlyContinue)) {
+        Fail "core CLI tool is unavailable: $command"
+    }
+}
 Invoke-Chezmoi @("apply") | Out-Host
 Invoke-Chezmoi @("apply") | Out-Host
 Assert-CleanChezMoi

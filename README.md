@@ -12,7 +12,7 @@ Run this from a normal `cmd.exe` prompt:
 curl.exe -fsSLo "%TEMP%\dotfiles-bootstrap.cmd" https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.cmd && call "%TEMP%\dotfiles-bootstrap.cmd"
 ```
 
-The Windows bootstrap requires WinGet. If App Installer exists but WinGet is not registered for the current user, it attempts current-user App Installer registration. If corporate policy disables WinGet, it stops with an error. Core packages are installed with WinGet in user scope and the bootstrap does not silently fall back to machine-scope or portable packages.
+The Windows bootstrap requires WinGet. If App Installer exists but WinGet is not registered for the current user, it attempts current-user App Installer registration. If corporate policy disables WinGet, it stops with an error. Core packages are installed with WinGet in user scope and the bootstrap does not silently fall back to machine-scope or portable packages. Core mode includes the user-scoped CLI toolchain (`micro`, `lsd`, `bat`, `fastfetch`, `fzf`, `fd`, `delta`, `jq`, `rg`, and `mise`); workstation-only packages such as 7-Zip, PowerToys, and VS Code are installed only outside core mode.
 
 The bootstrap does not require administrator rights or Developer Mode. It invokes PowerShell 7 with `-NoProfile`; an effective `AllSigned` policy is supported automatically. Each machine reuses or creates its own current-user Code Signing certificate and trusts its public certificate locally. No private key, PFX, or KeePass dependency is used.
 
