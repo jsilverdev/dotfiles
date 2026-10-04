@@ -2,6 +2,8 @@
 
 This repository uses [chezmoi](https://www.chezmoi.io/) to deploy regular dotfiles on Windows and Linux. Repository support files stay outside the `home/` source state.
 
+Fresh bootstrap installations keep the repository at `~/.dotfiles`. The generated chezmoi configuration persists that source directory, so regular commands such as `chezmoi update`, `chezmoi source-path`, and `chezmoi cd` use `~/.dotfiles` without extra flags. Existing installations are not moved automatically.
+
 ## Quick installation
 
 ### Windows
@@ -42,6 +44,7 @@ For dotfiles plus installer-managed package/application/module updates, use `upd
 
 ## State details
 
+- `.chezmoi.toml.tmpl` persists the source directory selected during `chezmoi init`; fresh bootstraps explicitly select `~/.dotfiles`.
 - `home/.chezmoiroot` is represented by the repository-level `.chezmoiroot`, pointing to `home`.
 - Windows-only `.wslconfig` and Linux-only Zsh/Sheldon state are filtered by `home/.chezmoiignore`.
 - `~/.gitconfig.local`, `~/.codex/config.toml`, and `~/.codex/rules/default.rules` use chezmoi create-only semantics and are not overwritten after creation.

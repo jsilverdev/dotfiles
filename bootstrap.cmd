@@ -121,7 +121,7 @@ for /f "delims=" %%R in ('chezmoi.exe source-path 2^>nul') do set "SOURCE_ROOT=%
 if defined SOURCE_ROOT if exist "%SOURCE_ROOT%\.chezmoiroot" goto existing_chezmoi
 if defined SOURCE_ROOT for %%P in ("%SOURCE_ROOT%\..") do if exist "%%~fP\.chezmoiroot" goto existing_chezmoi
 
-chezmoi.exe init "%REPO_URL%"
+chezmoi.exe --source "%USERPROFILE%\.dotfiles" init "%REPO_URL%"
 exit /b %ERRORLEVEL%
 
 :existing_chezmoi

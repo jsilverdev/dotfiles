@@ -14,6 +14,9 @@ printf 'HOME: %s\n' "$HOME"
 printf 'chezmoi: %s\n' "$(chezmoi --version)"
 printf 'chezmoi source-path: %s\n' "$(chezmoi source-path)"
 
+source_path="$(chezmoi source-path)"
+[[ "$source_path" == "$HOME/.dotfiles" ]] || fail "chezmoi source path is $source_path, expected $HOME/.dotfiles"
+
 case "$expected_distro" in
     debian) [[ -f /etc/debian_version ]] || fail "Debian detection marker is missing" ;;
     arch) [[ -f /etc/arch-release ]] || fail "Arch detection marker is missing" ;;

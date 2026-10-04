@@ -211,6 +211,11 @@ function Assert-CleanChezMoi {
 
 $sourcePath = ((Invoke-Chezmoi @("source-path")) -join "").Trim()
 Write-Host "chezmoi source-path: $sourcePath"
+$expectedSourcePath = [IO.Path]::GetFullPath((Join-Path $HOME ".dotfiles")).TrimEnd([IO.Path]::DirectorySeparatorChar)
+$actualSourcePath = [IO.Path]::GetFullPath($sourcePath).TrimEnd([IO.Path]::DirectorySeparatorChar)
+if (-not $actualSourcePath.Equals($expectedSourcePath, [StringComparison]::OrdinalIgnoreCase)) {
+    Fail "chezmoi source path is $actualSourcePath, expected $expectedSourcePath"
+}
 $managedAppsPath = Join-Path $RepoRoot "scripts\windows\managed-apps.csv"
 $coreApps = @(Import-Csv -LiteralPath $managedAppsPath | Where-Object Category -eq "core")
 foreach ($app in $coreApps) {

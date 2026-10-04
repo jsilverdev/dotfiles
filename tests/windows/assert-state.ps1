@@ -41,6 +41,12 @@ $sourcePath = ((Invoke-Chezmoi @("source-path")) -join "").Trim()
 Write-Host "chezmoi source-path: $sourcePath"
 if (-not (Test-Path -LiteralPath $sourcePath)) { Fail "chezmoi source path does not exist: $sourcePath" }
 
+$expectedSourcePath = [IO.Path]::GetFullPath((Join-Path $HOME ".dotfiles")).TrimEnd([IO.Path]::DirectorySeparatorChar)
+$actualSourcePath = [IO.Path]::GetFullPath($sourcePath).TrimEnd([IO.Path]::DirectorySeparatorChar)
+if (-not $actualSourcePath.Equals($expectedSourcePath, [StringComparison]::OrdinalIgnoreCase)) {
+    Fail "chezmoi source path is $actualSourcePath, expected $expectedSourcePath"
+}
+
 $requiredFiles = @(
     (Join-Path $HOME ".gitconfig"),
     (Join-Path $HOME ".gitconfig.local"),

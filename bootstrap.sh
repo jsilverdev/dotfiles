@@ -82,7 +82,7 @@ else
     if [[ -f "$SOURCE_ROOT/.chezmoiroot" || -f "$(dirname "$SOURCE_ROOT")/.chezmoiroot" ]]; then
         existing_source=true
     else
-        chezmoi init "$REPO_URL"
+        chezmoi --source "$HOME/.dotfiles" init "$REPO_URL"
     fi
 fi
 
