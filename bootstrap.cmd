@@ -7,9 +7,11 @@ if defined DOTFILES_REPO (
     set "REPO_URL=https://github.com/jsilverdev/dotfiles.git"
 )
 
+call :mark_stage cleanup
 call :remove_legacy_broken_links
 if errorlevel 1 exit /b 1
 
+call :mark_stage winget
 where winget.exe >nul 2>&1
 if errorlevel 1 (
     echo WinGet is not registered for this user. Attempting App Installer registration...
@@ -25,27 +27,34 @@ if errorlevel 1 (
     exit /b 1
 )
 
+call :mark_stage ensure_git
 call :ensure_package Git.Git git
 if errorlevel 1 exit /b 1
+call :mark_stage ensure_pwsh
 call :ensure_package Microsoft.PowerShell pwsh
 if errorlevel 1 exit /b 1
+call :mark_stage ensure_mise
 call :ensure_package jdx.mise mise
 if errorlevel 1 exit /b 1
+call :mark_stage ensure_chezmoi
 call :ensure_package twpayne.chezmoi chezmoi
 if errorlevel 1 exit /b 1
 
+call :mark_stage refresh_path
 call :refresh_path
 where git.exe >nul 2>&1 || (echo Git is still unavailable after installation. 1>&2 & exit /b 1)
 where pwsh.exe >nul 2>&1 || (echo PowerShell 7 is still unavailable after installation. 1>&2 & exit /b 1)
 where mise.exe >nul 2>&1 || (echo mise is still unavailable after installation. 1>&2 & exit /b 1)
 where chezmoi.exe >nul 2>&1 || (echo chezmoi is still unavailable after installation. 1>&2 & exit /b 1)
 
+call :mark_stage initialize_chezmoi
 call :initialize_chezmoi
 if errorlevel 1 (
     echo chezmoi initialization/update failed. 1>&2
     exit /b 1
 )
 
+call :mark_stage resolve_repo_root
 call :resolve_repo_root
 if not defined REPO_ROOT (
     echo Unable to resolve the chezmoi working tree. 1>&2
@@ -56,6 +65,7 @@ if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" (
     exit /b 1
 )
 
+call :mark_stage install
 if /I "%DOTFILES_NONINTERACTIVE%"=="1" if /I "%DOTFILES_CORE_ONLY%"=="1" (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -CoreOnly -RepoRoot "%REPO_ROOT%"
 ) else if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
@@ -65,7 +75,14 @@ if /I "%DOTFILES_NONINTERACTIVE%"=="1" if /I "%DOTFILES_CORE_ONLY%"=="1" (
 ) else (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -RepoRoot "%REPO_ROOT%"
 )
-exit /b %ERRORLEVEL%
+set "BOOTSTRAP_EXIT=%ERRORLEVEL%"
+if not "%BOOTSTRAP_EXIT%"=="0" exit /b %BOOTSTRAP_EXIT%
+call :mark_stage complete
+exit /b 0
+
+:mark_stage
+if defined DOTFILES_BOOTSTRAP_STAGE_FILE >"%DOTFILES_BOOTSTRAP_STAGE_FILE%" echo %~1
+exit /b 0
 
 :ensure_package
 set "PACKAGE_ID=%~1"
