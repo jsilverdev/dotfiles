@@ -7,34 +7,19 @@ $f=$false
 try{
  if(!(Test-Path -LiteralPath $s -PathType Leaf)){throw "PowerShell script not found: $s"}
  $pw=(Get-Command pwsh.exe -ErrorAction Stop).Source
+ $ps=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+ if(!(Test-Path -LiteralPath $ps -PathType Leaf)){throw "Windows PowerShell not found: $ps"}
  $h=Join-Path $env:DOTFILES_PS_BRIDGE_DIR 'signing.ps1'
  if(!(Test-Path -LiteralPath $h -PathType Leaf)){throw "Signing helper not found: $h"}
  $env:DOTFILES_SIGNING_REQUIRED='1'
- $sb=[scriptblock]::Create((Get-Content -LiteralPath $h -Raw))
  if([IO.Path]::GetFileName($s)-ieq 'signing.ps1'){
-  if(($a.Count%2)-ne0){throw 'Invalid signing helper arguments'}
-  $action=$null
-  $path=$null
-  $module=$null
-  for($i=0;$i-lt$a.Count;$i+=2){
-   switch($a[$i]){
-    '-Action'{$action=$a[$i+1]}
-    '-Path'{$path=$a[$i+1]}
-    '-ModuleName'{$module=$a[$i+1]}
-    default{throw "Unsupported signing helper argument: $($a[$i])"}
-   }
-  }
-  if($action-eq'ProtectFiles'){
-   if(!$path){throw 'ProtectFiles requires -Path'}
-   & $sb -Action ProtectFiles -Path $path
-  }elseif($action-eq'ProtectModule'){
-   if(!$module){throw 'ProtectModule requires -ModuleName'}
-   & $sb -Action ProtectModule -ModuleName $module
-  }else{throw "Unsupported signing helper action: $action"}
+  & $ps -NoProfile -File $h @a
+  if($LASTEXITCODE-ne0){$f=$true}
  }else{
   $t=[IO.Path]::ChangeExtension([IO.Path]::GetTempFileName(),'.ps1')
   Copy-Item -LiteralPath $s -Destination $t -Force
-  & $sb -Action ProtectFiles -Path $t
+  & $ps -NoProfile -File $h -Action ProtectFiles -Path $t
+  if($LASTEXITCODE-ne0){throw "Signing helper failed with exit code $LASTEXITCODE"}
   & $pw -NoProfile -File $t @a
   if($LASTEXITCODE-ne0){$f=$true}
  }
