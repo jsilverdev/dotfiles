@@ -770,6 +770,12 @@ jobs:
           call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
           if errorlevel 1 exit /b 1
 
+      - name: Smoke-test deploy-pwsh hook target under AllSigned
+        shell: cmd
+        run: |
+          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\scripts\windows\deploy-pwsh.ps1" -RepoRoot "%GITHUB_WORKSPACE%"
+          if errorlevel 1 exit /b 1
+
       - name: Run the real bootstrap through CMD and the signing bridge
         id: allsigned_bootstrap
         continue-on-error: true
@@ -824,8 +830,18 @@ jobs:
         shell: cmd
         run: exit /b 1
 
-      - name: AllSigned bootstrap failed during chezmoi init/apply
+      - name: AllSigned bootstrap failed during chezmoi init
         if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '31'
+        shell: cmd
+        run: exit /b 1
+
+      - name: AllSigned bootstrap failed during chezmoi apply or hook execution
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '33'
+        shell: cmd
+        run: exit /b 1
+
+      - name: AllSigned bootstrap failed during chezmoi update
+        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '34'
         shell: cmd
         run: exit /b 1
 
@@ -840,7 +856,7 @@ jobs:
         run: exit /b 1
 
       - name: AllSigned bootstrap failed with an unmapped diagnostic code
-        if: steps.allsigned_bootstrap.outcome == 'failure' && !contains(fromJSON('["11","12","21","22","23","24","25","31","32","40"]'), steps.allsigned_bootstrap.outputs.exit_code)
+        if: steps.allsigned_bootstrap.outcome == 'failure' && !contains(fromJSON('["11","12","21","22","23","24","25","31","32","33","34","40"]'), steps.allsigned_bootstrap.outputs.exit_code)
         shell: cmd
         run: exit /b 1
 

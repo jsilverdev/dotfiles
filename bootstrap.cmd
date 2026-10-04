@@ -138,6 +138,7 @@ exit /b 1
 
 :initialize_chezmoi
 if exist "%CD%\.chezmoiroot" (
+    set "BOOTSTRAP_FAILURE_CODE=33"
     chezmoi.exe --source "%CD%" apply
     exit /b %ERRORLEVEL%
 )
@@ -145,9 +146,16 @@ set "SOURCE_ROOT="
 for /f "delims=" %%R in ('chezmoi.exe source-path 2^>nul') do set "SOURCE_ROOT=%%R"
 if defined SOURCE_ROOT if exist "%SOURCE_ROOT%\.chezmoiroot" goto existing_chezmoi
 if defined SOURCE_ROOT for %%P in ("%SOURCE_ROOT%\..") do if exist "%%~fP\.chezmoiroot" goto existing_chezmoi
-chezmoi.exe init --apply "%REPO_URL%"
+
+set "BOOTSTRAP_FAILURE_CODE=31"
+chezmoi.exe init "%REPO_URL%"
+if errorlevel 1 exit /b %ERRORLEVEL%
+
+set "BOOTSTRAP_FAILURE_CODE=33"
+chezmoi.exe apply
 exit /b %ERRORLEVEL%
 
 :existing_chezmoi
+set "BOOTSTRAP_FAILURE_CODE=34"
 chezmoi.exe update
 exit /b %ERRORLEVEL%
