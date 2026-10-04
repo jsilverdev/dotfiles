@@ -6,11 +6,15 @@ This repository uses [chezmoi](https://www.chezmoi.io/) to deploy regular dotfil
 
 ### Windows
 
-Run this from a normal `cmd.exe` prompt:
+Open **Windows PowerShell 5.1** and run:
 
-```cmd
-curl.exe -fsSLo "%TEMP%\dotfiles-bootstrap.cmd" https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.cmd && call "%TEMP%\dotfiles-bootstrap.cmd"
+```powershell
+$bootstrap = Join-Path $env:TEMP 'dotfiles-bootstrap.cmd'
+Invoke-WebRequest -UseBasicParsing -Uri 'https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.cmd' -OutFile $bootstrap
+& $env:ComSpec /d /c "call `"$bootstrap`""
 ```
+
+Windows PowerShell 5.1 is only used to download and launch the CMD bootstrap. The bootstrap itself provisions and uses PowerShell 7 where required.
 
 The Windows bootstrap requires WinGet. Before applying chezmoi, it removes only broken links or reparse points that block a currently managed destination path. Parent components under the user profile are checked as well, but valid links are never traversed and unrelated broken links are left untouched. If App Installer exists but WinGet is not registered for the current user, it attempts current-user App Installer registration. If corporate policy disables WinGet, it stops with an error. Bootstrap installs only Git, PowerShell 7, and chezmoi when they are missing; the platform installer owns the remaining application catalog.
 
@@ -54,3 +58,10 @@ The `Validate dotfiles` workflow exercises Debian, Arch Linux, Windows with its 
 Integration jobs bootstrap from a temporary local bare Git remote containing the exact commit under test. They run the real non-interactive baseline, validate installed CLI tools, exercise create-only Codex files and update wrappers, check idempotent chezmoi apply, and verify clean source/checkout state. Static validation includes ShellCheck, PowerShell parsing, manifest checks, chezmoi template evaluation, bridge-payload synchronization, and pinned `actionlint` validation of the workflow.
 
 The Windows AllSigned job validates current-user certificate creation and reuse, Authenticode signing, the CMD execution bridge, PowerShell profile startup, and managed module loading. When PowerShell 7 requires signed scripts, the bridge uses inbox Windows PowerShell only for Authenticode signing and executes the resulting signed script with PowerShell 7 under the effective policy. The hosted runner is an administrator with UAC disabled, so CI trusts the test certificate through `LocalMachine\Root` plus `CurrentUser\TrustedPublisher`; runtime helpers also accept `CurrentUser\Root` for the real non-admin path. Corporate GPO/MDM/AppLocker/WDAC policy, enterprise App Installer policy, and a true non-admin corporate Windows 11 token still require validation on a managed machine.
+
+
+## Acknowledgments
+
+This dotfiles repository is inspired by:
+- [Lissy93's dotfiles](https://github.com/Lissy93/dotfiles)
+- [KEVINNITRO DOTFILES](https://github.com/KevinNitroG/dotfiles).
