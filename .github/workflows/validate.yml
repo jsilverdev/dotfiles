@@ -773,27 +773,21 @@ jobs:
       - name: Run the real bootstrap through CMD and the signing bridge
         id: allsigned_bootstrap
         continue-on-error: true
-        shell: pwsh
+        shell: cmd
         env:
           DOTFILES_NONINTERACTIVE: '1'
           DOTFILES_CORE_ONLY: '1'
           DOTFILES_BOOTSTRAP_DIAGNOSTICS: '1'
         run: |
-          $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
-          New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
-          Push-Location $runDirectory
-          try {
-            & cmd.exe /d /c "$env:GITHUB_WORKSPACE\bootstrap.cmd"
-            $exitCode = $LASTEXITCODE
-          }
-          finally {
-            Pop-Location
-          }
-          "exit_code=$exitCode" | Add-Content -Path $env:GITHUB_OUTPUT
-          Write-Host "AllSigned bootstrap exit=$exitCode"
-          if ($exitCode -ne 0) {
-            throw "bootstrap.cmd failed with diagnostic exit code $exitCode"
-          }
+          set "RUN_DIRECTORY=%RUNNER_TEMP%\dotfiles-run"
+          if not exist "%RUN_DIRECTORY%" mkdir "%RUN_DIRECTORY%"
+          pushd "%RUN_DIRECTORY%"
+          call "%GITHUB_WORKSPACE%\bootstrap.cmd"
+          set "BOOTSTRAP_EXIT=%ERRORLEVEL%"
+          popd
+          echo AllSigned bootstrap exit=%BOOTSTRAP_EXIT%
+          echo exit_code=%BOOTSTRAP_EXIT%>>"%GITHUB_OUTPUT%"
+          exit /b %BOOTSTRAP_EXIT%
 
       - name: AllSigned bootstrap failed during legacy cleanup
         if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '11'
