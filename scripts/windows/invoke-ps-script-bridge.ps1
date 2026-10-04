@@ -12,7 +12,25 @@ try{
  $env:DOTFILES_SIGNING_REQUIRED='1'
  $sb=[scriptblock]::Create((Get-Content -LiteralPath $h -Raw))
  if([IO.Path]::GetFileName($s)-ieq 'signing.ps1'){
-  & $sb @a
+  if(($a.Count%2)-ne0){throw 'Invalid signing helper arguments'}
+  $action=$null
+  $path=$null
+  $module=$null
+  for($i=0;$i-lt$a.Count;$i+=2){
+   switch($a[$i]){
+    '-Action'{$action=$a[$i+1]}
+    '-Path'{$path=$a[$i+1]}
+    '-ModuleName'{$module=$a[$i+1]}
+    default{throw "Unsupported signing helper argument: $($a[$i])"}
+   }
+  }
+  if($action-eq'ProtectFiles'){
+   if(!$path){throw 'ProtectFiles requires -Path'}
+   & $sb -Action ProtectFiles -Path $path
+  }elseif($action-eq'ProtectModule'){
+   if(!$module){throw 'ProtectModule requires -ModuleName'}
+   & $sb -Action ProtectModule -ModuleName $module
+  }else{throw "Unsupported signing helper action: $action"}
  }else{
   $t=[IO.Path]::ChangeExtension([IO.Path]::GetTempFileName(),'.ps1')
   Copy-Item -LiteralPath $s -Destination $t -Force

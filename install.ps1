@@ -101,7 +101,13 @@ function Install-WithWinget {
     elseif ($Update) {
         Write-Host "Updating $AppId..." -ForegroundColor Yellow
         & winget upgrade --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
-        if ($LASTEXITCODE -ne 0) { throw "WinGet could not update $AppId." }
+        $upgradeExitCode = $LASTEXITCODE
+        if ($upgradeExitCode -eq -1978335189) {
+            Write-Host "$AppId is already up to date" -ForegroundColor Green
+        }
+        elseif ($upgradeExitCode -ne 0) {
+            throw "WinGet could not update $AppId (exit code $upgradeExitCode)."
+        }
     }
     else {
         Write-Host "$AppId is already installed" -ForegroundColor Green
