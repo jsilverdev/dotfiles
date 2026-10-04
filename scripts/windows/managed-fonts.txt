@@ -1,0 +1,4 @@
+# Expected filename globs for the Windows font baseline.
+CascadiaCode*.ttf
+CaskaydiaCove*.ttf
+CaskaydiaMono*.ttf
