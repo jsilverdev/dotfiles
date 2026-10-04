@@ -211,45 +211,31 @@ function Install-MustHaveApps {
     }
 
     $allSigned = $env:DOTFILES_SIGNING_REQUIRED -eq "1"
+    $userModuleRoots = @(
+        (Join-Path $HOME "Documents\PowerShell\Modules"),
+        (Join-Path $HOME ".local\share\powershell\Modules")
+    )
+
     foreach ($module in $ManagedModules) {
-        $availableModules = @(Get-Module -ListAvailable -Name $module)
-        if ($allSigned) {
-            $userModuleRoots = @(
-                (Join-Path $HOME "Documents\PowerShell\Modules"),
-                (Join-Path $HOME ".local\share\powershell\Modules")
-            )
-            $installedModule = @($availableModules | Where-Object {
-                $moduleBase = [IO.Path]::GetFullPath($_.ModuleBase).TrimEnd([IO.Path]::DirectorySeparatorChar)
-                @($userModuleRoots | Where-Object {
-                    $root = [IO.Path]::GetFullPath($_).TrimEnd([IO.Path]::DirectorySeparatorChar)
-                    $moduleBase.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
-                    $moduleBase.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
-                }).Count -gt 0
-            } | Select-Object -First 1)
-            if ($installedModule.Count -eq 0) { $installedModule = $null }
-            else { $installedModule = $installedModule[0] }
-        }
-        else {
-            $installedModule = $availableModules | Select-Object -First 1
-        }
+        $installedModule = @(Get-Module -ListAvailable -Name $module | Where-Object {
+            $moduleBase = [IO.Path]::GetFullPath($_.ModuleBase).TrimEnd([IO.Path]::DirectorySeparatorChar)
+            @($userModuleRoots | Where-Object {
+                $root = [IO.Path]::GetFullPath($_).TrimEnd([IO.Path]::DirectorySeparatorChar)
+                $moduleBase.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
+                $moduleBase.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
+            }).Count -gt 0
+        } | Select-Object -First 1)
 
-        $installedResource = $null
-        if (-not $allSigned -and (Get-Command Get-InstalledPSResource -ErrorAction SilentlyContinue)) {
-            $installedResource = Get-InstalledPSResource -Name $module -ErrorAction SilentlyContinue | Select-Object -First 1
-        }
+        if ($installedModule.Count -eq 0 -or $Update) {
+            $verb = if ($installedModule.Count -eq 0) { "Installing" } else { "Updating" }
+            Write-Host "$verb $module module..." -ForegroundColor Cyan
 
-        if ($null -eq $installedModule) {
-            Write-Host "Installing $module module..." -ForegroundColor Cyan
-            if ($allSigned) { Save-ManagedModuleForAllSigned -Name $module }
-            else { Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false }
-        }
-        elseif ($Update) {
-            Write-Host "Updating $module module..." -ForegroundColor Yellow
-            if ($allSigned) { Save-ManagedModuleForAllSigned -Name $module }
-            elseif ($null -ne $installedResource -and (Get-Command Update-PSResource -ErrorAction SilentlyContinue)) {
-                Update-PSResource -Name $module -Scope CurrentUser -Force
+            if ($allSigned) {
+                Save-ManagedModuleForAllSigned -Name $module
             }
-            else { Update-Module -Name $module -Force }
+            else {
+                Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false
+            }
         }
         else {
             Write-Host "$module module is already installed" -ForegroundColor Green

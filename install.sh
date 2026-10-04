@@ -81,7 +81,9 @@ pre_setup_tasks() {
     export PATH="$HOME/.local/bin:$PATH"
     detect_distro
     detect_arch
-    updates_enabled && printf '%bUpdate mode enabled.%b\n' "$CYAN" "$RESET"
+    if updates_enabled; then
+        printf '%bUpdate mode enabled.%b\n' "$CYAN" "$RESET"
+    fi
 }
 
 refresh_package_index() {
@@ -173,7 +175,7 @@ debian_release_arch() { [[ "$arch" == "aarch64" ]] && printf 'arm64\n' || printf
 
 install_fastfetch() {
     if apt-cache show fastfetch >/dev/null 2>&1; then sudo apt-get install --yes fastfetch
-    else install_github_deb_asset "fastfetch-cli/fastfetch" "fastfetch-linux-${arch}\\.deb$"; fi
+    else install_github_deb_asset "fastfetch-cli/fastfetch" "fastfetch-linux-${arch}-polyfilled\\.deb$"; fi
 }
 install_lsd() {
     if apt-cache show lsd >/dev/null 2>&1; then sudo apt-get install --yes lsd

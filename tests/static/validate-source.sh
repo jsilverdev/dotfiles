@@ -22,7 +22,7 @@ required_paths=(
 )
 for path in "${required_paths[@]}"; do [[ -e "$path" ]] || { printf 'required path is missing: %s\n' "$path" >&2; exit 1; }; done
 
-if git grep -n -E 'DOTFILES_CORE_ONLY|CoreOnly|--core-only'; then echo 'obsolete core-only mode is still referenced' >&2; exit 1; fi
+if git grep -n -E 'DOTFILES_CORE_ONLY|CoreOnly|--core-only' -- ':!tests/static/validate-source.sh'; then echo 'obsolete core-only mode is still referenced' >&2; exit 1; fi
 if git ls-files | grep -E '(^|/)symlink_[^/]*$'; then echo 'chezmoi symlink source state is not allowed' >&2; exit 1; fi
 if git grep -n -i dotbot -- ':!.github/workflows/validate.yml'; then echo 'obsolete Dotbot dependency/reference found' >&2; exit 1; fi
 if git grep -n -E 'https://github\.com/jsilverdev/dotfiles\.git.*master|raw\.githubusercontent\.com/jsilverdev/dotfiles/master'; then echo 'obsolete master bootstrap URL found' >&2; exit 1; fi

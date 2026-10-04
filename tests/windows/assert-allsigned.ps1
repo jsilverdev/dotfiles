@@ -219,8 +219,9 @@ foreach ($app in $coreApps) {
         Fail "baseline CLI tool is unavailable: $($app.Alias)"
     }
 }
-if (-not (Get-Command -Name starship -ErrorAction SilentlyContinue)) {
-    Fail "starship is unavailable"
+& mise which starship *> $null
+if ($LASTEXITCODE -ne 0) {
+    Fail "starship is not managed by mise"
 }
 Invoke-Chezmoi @("apply") | Out-Host
 Invoke-Chezmoi @("apply") | Out-Host
