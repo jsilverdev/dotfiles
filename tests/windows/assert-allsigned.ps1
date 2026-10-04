@@ -24,10 +24,15 @@ $certificate = @(Get-ChildItem Cert:\CurrentUser\My | Where-Object {
 } | Sort-Object NotAfter -Descending | Select-Object -First 1)
 if ($certificate.Count -ne 1) { Fail "usable dotfiles Code Signing certificate was not found in CurrentUser\\My" }
 
-foreach ($storeName in @("My", "Root", "TrustedPublisher")) {
+foreach ($storeName in @("My", "TrustedPublisher")) {
     $trusted = @(Get-ChildItem "Cert:\CurrentUser\$storeName" | Where-Object Thumbprint -eq $certificate[0].Thumbprint)
     if ($trusted.Count -ne 1) { Fail "certificate $($certificate[0].Thumbprint) is missing from CurrentUser\\$storeName" }
 }
+$trustedRoot = @(
+    Get-ChildItem Cert:\CurrentUser\Root | Where-Object Thumbprint -eq $certificate[0].Thumbprint
+    Get-ChildItem Cert:\LocalMachine\Root | Where-Object Thumbprint -eq $certificate[0].Thumbprint
+)
+if ($trustedRoot.Count -eq 0) { Fail "certificate $($certificate[0].Thumbprint) is missing from both CurrentUser\\Root and LocalMachine\\Root" }
 Write-Host "Certificate: $($certificate[0].Subject) thumbprint=$($certificate[0].Thumbprint) expires=$($certificate[0].NotAfter)"
 
 if (Test-Path -LiteralPath $ThumbprintFile) {
@@ -43,10 +48,15 @@ function Invoke-Chezmoi([string[]]$Arguments) {
 }
 
 function Assert-CleanChezMoi {
-    # Always-run scripts intentionally appear as "R" in chezmoi status.
-    # Exclude scripts so this assertion checks only declarative target drift.
+    # Always-run scripts appear as "R" and create-only files may legitimately
+    # differ in the first status column. Only the second column means apply
+    # still has work to do.
     $status = @(Invoke-Chezmoi @("status", "--exclude=scripts"))
-    if ($status.Count -ne 0) { Fail "chezmoi target state is not clean: $($status -join [Environment]::NewLine)" }
+    $pending = @($status | Where-Object {
+        $line = [string]$_
+        $line.Length -ge 2 -and $line[1] -ne ' '
+    })
+    if ($pending.Count -ne 0) { Fail "chezmoi has pending target changes: $($pending -join [Environment]::NewLine)" }
 }
 
 $sourcePath = ((Invoke-Chezmoi @("source-path")) -join "").Trim()

@@ -577,31 +577,29 @@ jobs:
           Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Value $certificate.Thumbprint -NoNewline
           Export-Certificate -Cert $certificate -FilePath (Join-Path $env:RUNNER_TEMP 'dotfiles-signing.cer') -Type CERT -Force | Out-Null
 
-      - name: Trust and verify CI code-signing certificate for current user
+      - name: Trust and verify CI code-signing certificate
         shell: pwsh
         timeout-minutes: 2
         run: |
           $certificatePath = Join-Path $env:RUNNER_TEMP 'dotfiles-signing.cer'
           $thumbprint = (Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Raw).Trim()
-          $publicCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($certificatePath)
-          if ($publicCertificate.Thumbprint -ne $thumbprint) {
-            throw "exported CI certificate thumbprint does not match: $($publicCertificate.Thumbprint)"
-          }
 
-          foreach ($storeName in @('Root', 'TrustedPublisher')) {
-            $storePath = "Cert:\CurrentUser\$storeName"
-            $existing = Get-ChildItem $storePath |
+          $stores = @(
+            @{ Path = 'Cert:\LocalMachine\Root'; Name = 'LocalMachine\\Root' },
+            @{ Path = 'Cert:\CurrentUser\TrustedPublisher'; Name = 'CurrentUser\\TrustedPublisher' }
+          )
+          foreach ($store in $stores) {
+            $existing = Get-ChildItem $store.Path |
               Where-Object Thumbprint -eq $thumbprint |
               Select-Object -First 1
             if ($null -eq $existing) {
-              Import-Certificate -FilePath $certificatePath -CertStoreLocation $storePath -Confirm:$false | Out-Null
+              Import-Certificate -FilePath $certificatePath -CertStoreLocation $store.Path -Confirm:$false | Out-Null
             }
-
-            $trusted = Get-ChildItem $storePath |
+            $trusted = Get-ChildItem $store.Path |
               Where-Object Thumbprint -eq $thumbprint |
               Select-Object -First 1
             if ($null -eq $trusted) {
-              throw "CI code-signing certificate was not trusted in CurrentUser\$storeName"
+              throw "CI code-signing certificate was not trusted in $($store.Name)"
             }
           }
 

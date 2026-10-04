@@ -25,10 +25,15 @@ function Invoke-Chezmoi([string[]]$Arguments) {
 }
 
 function Assert-CleanChezMoi {
-    # Always-run scripts intentionally appear as "R" in chezmoi status.
-    # Exclude scripts so this assertion checks only declarative target drift.
+    # Always-run scripts appear as "R" and create-only files may legitimately
+    # differ in the first status column. Only the second column means apply
+    # still has work to do.
     $status = @(Invoke-Chezmoi @("status", "--exclude=scripts"))
-    if ($status.Count -ne 0) { Fail "chezmoi target state is not clean: $($status -join [Environment]::NewLine)" }
+    $pending = @($status | Where-Object {
+        $line = [string]$_
+        $line.Length -ge 2 -and $line[1] -ne ' '
+    })
+    if ($pending.Count -ne 0) { Fail "chezmoi has pending target changes: $($pending -join [Environment]::NewLine)" }
 }
 
 Write-Host "chezmoi: $((chezmoi.exe --version) -join ' ')"

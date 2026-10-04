@@ -51,13 +51,20 @@ function Get-DotfilesSigningCertificate {
         $publicCertificatePath = [IO.Path]::ChangeExtension([IO.Path]::GetTempFileName(), ".cer")
         Export-Certificate -Cert $certificate -FilePath $publicCertificatePath -Type CERT -Force | Out-Null
 
-        foreach ($storeName in @("Root", "TrustedPublisher")) {
-            $storePath = "Cert:\CurrentUser\$storeName"
-            $trusted = Get-ChildItem -Path $storePath | Where-Object Thumbprint -eq $certificate.Thumbprint
-            if ($null -eq $trusted) {
-                & certutil.exe -user -f -addstore $storeName $publicCertificatePath | Out-Null
-                if ($LASTEXITCODE -ne 0) { throw "certutil could not trust CurrentUser\\$storeName." }
-            }
+        $trustedRoot = @(
+            Get-ChildItem -Path Cert:\CurrentUser\Root | Where-Object Thumbprint -eq $certificate.Thumbprint
+            Get-ChildItem -Path Cert:\LocalMachine\Root | Where-Object Thumbprint -eq $certificate.Thumbprint
+        )
+        if ($trustedRoot.Count -eq 0) {
+            & certutil.exe -user -f -addstore Root $publicCertificatePath | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "certutil could not trust CurrentUser\\Root." }
+        }
+
+        $trustedPublisher = Get-ChildItem -Path Cert:\CurrentUser\TrustedPublisher |
+            Where-Object Thumbprint -eq $certificate.Thumbprint
+        if ($null -eq $trustedPublisher) {
+            & certutil.exe -user -f -addstore TrustedPublisher $publicCertificatePath | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "certutil could not trust CurrentUser\\TrustedPublisher." }
         }
     }
     catch {
