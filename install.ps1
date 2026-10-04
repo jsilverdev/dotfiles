@@ -81,7 +81,6 @@ function Install-WithWinget {
     param(
         [Parameter(Mandatory)][string]$AppId,
         [string]$Alias,
-        [ValidateSet("user", "machine")][string]$Scope,
         [switch]$Update
     )
 
@@ -94,25 +93,14 @@ function Install-WithWinget {
         $installed = $LASTEXITCODE -eq 0
     }
 
-    $wingetArgs = @(
-        "--id", $AppId,
-        "--exact",
-        "--source", "winget",
-        "--silent",
-        "--disable-interactivity",
-        "--accept-source-agreements",
-        "--accept-package-agreements"
-    )
-    if ($Scope) { $wingetArgs += @("--scope", $Scope) }
-
     if (-not $installed) {
         Write-Host "Installing $AppId..." -ForegroundColor Cyan
-        & winget install @wingetArgs
+        & winget install --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
         if ($LASTEXITCODE -ne 0) { throw "WinGet could not install $AppId." }
     }
     elseif ($Update) {
         Write-Host "Updating $AppId..." -ForegroundColor Yellow
-        & winget upgrade @wingetArgs
+        & winget upgrade --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
         if ($LASTEXITCODE -ne 0) { throw "WinGet could not update $AppId." }
     }
     else {
@@ -142,7 +130,7 @@ function Install-MustHaveApps {
     )
 
     foreach ($package in $corePackages) {
-        Install-WithWinget -AppId $package.AppId -Alias $package.Alias -Scope user -Update:$Update
+        Install-WithWinget -AppId $package.AppId -Alias $package.Alias -Update:$Update
     }
     if (-not $CoreOnly) {
         foreach ($package in $workstationPackages) {
