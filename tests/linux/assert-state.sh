@@ -15,7 +15,9 @@ printf 'chezmoi: %s\n' "$(chezmoi --version)"
 printf 'chezmoi source-path: %s\n' "$(chezmoi source-path)"
 
 source_path="$(chezmoi source-path)"
-[[ "$source_path" == "$HOME/.dotfiles" ]] || fail "chezmoi source path is $source_path, expected $HOME/.dotfiles"
+working_tree="$(chezmoi execute-template '{{ .chezmoi.workingTree }}')"
+[[ "$working_tree" == "$HOME/.dotfiles" ]] || fail "chezmoi working tree is $working_tree, expected $HOME/.dotfiles"
+[[ "$source_path" == "$HOME/.dotfiles/home" ]] || fail "chezmoi source path is $source_path, expected $HOME/.dotfiles/home"
 
 case "$expected_distro" in
     debian) [[ -f /etc/debian_version ]] || fail "Debian detection marker is missing" ;;

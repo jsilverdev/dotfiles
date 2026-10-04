@@ -2,7 +2,7 @@
 
 This repository uses [chezmoi](https://www.chezmoi.io/) to deploy regular dotfiles on Windows and Linux. Repository support files stay outside the `home/` source state.
 
-Fresh bootstrap installations keep the repository at `~/.dotfiles`. The generated chezmoi configuration persists that source directory, so regular commands such as `chezmoi update`, `chezmoi source-path`, and `chezmoi cd` use `~/.dotfiles` without extra flags. Existing installations are not moved automatically.
+Fresh bootstrap installations keep the Git working tree at `~/.dotfiles`. The generated chezmoi configuration persists that directory, so regular commands such as `chezmoi update` and `chezmoi cd` use it without extra flags. Because `.chezmoiroot` points to `home`, `chezmoi source-path` resolves to `~/.dotfiles/home`. Existing installations are not moved automatically.
 
 ## Quick installation
 

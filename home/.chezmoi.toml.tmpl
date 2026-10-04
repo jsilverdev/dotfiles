@@ -1,1 +1,1 @@
-sourceDir = {{ .chezmoi.sourceDir | quote }}
+sourceDir = {{ joinPath .chezmoi.homeDir ".dotfiles" | quote }}
