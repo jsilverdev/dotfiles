@@ -24,15 +24,6 @@ foreach ($file in $files) {
 
     New-Item -ItemType Directory -Path (Split-Path -Parent $file.Destination) -Force | Out-Null
 
-    # Remove a legacy symlink before copying the regular runtime file.
-    # Copy-Item otherwise follows a broken link and fails instead of replacing it.
-    if (Test-Path -LiteralPath $file.Destination -PathType Leaf) {
-        $existing = Get-Item -LiteralPath $file.Destination -Force
-        if (($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
-            Remove-Item -LiteralPath $file.Destination -Force
-        }
-    }
-
     Copy-Item -LiteralPath $source -Destination $file.Destination -Force
 }
 

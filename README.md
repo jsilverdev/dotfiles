@@ -12,7 +12,9 @@ Run this from a normal `cmd.exe` prompt:
 curl.exe -fsSLo "%TEMP%\dotfiles-bootstrap.cmd" https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.cmd && call "%TEMP%\dotfiles-bootstrap.cmd"
 ```
 
-The Windows bootstrap requires WinGet. If App Installer exists but WinGet is not registered for the current user, it attempts current-user App Installer registration. If corporate policy disables WinGet, it stops with an error. Core packages are installed with WinGet in user scope and the bootstrap does not silently fall back to machine-scope or portable packages. Core mode includes the CLI toolchain (`micro`, `lsd`, `bat`, `fastfetch`, `fzf`, `fd`, `delta`, `jq`, `rg`, and `mise`); workstation-only packages such as 7-Zip, PowerToys, and VS Code are installed only outside core mode.
+The Windows bootstrap requires WinGet. If App Installer exists but WinGet is not registered for the current user, it attempts current-user App Installer registration. If corporate policy disables WinGet, it stops with an error. Bootstrap installs only Git, PowerShell 7, and chezmoi when they are missing; the platform installer owns the remaining application catalog.
+
+Baseline CLI packages are declared in `scripts/windows/managed-apps.csv` and are installed with WinGet in user scope. An interactive run also installs workstation applications, fonts, Windows Terminal customization, and offers optional applications. `DOTFILES_NONINTERACTIVE=1` installs the complete baseline but skips those interactive/workstation customizations.
 
 The bootstrap does not require administrator rights or Developer Mode. It invokes PowerShell 7 with `-NoProfile`; an effective `AllSigned` policy is supported automatically. Each machine reuses or creates its own current-user Code Signing certificate and trusts its public certificate locally. No private key, PFX, or KeePass dependency is used.
 
@@ -24,7 +26,7 @@ On Debian or Arch Linux, run:
 bash <(curl -fsSL https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.sh)
 ```
 
-The bootstrap installs the minimal tools, installs chezmoi in `~/.local/bin` when needed, applies the home state, and then runs the package/application installer. WSL-specific system configuration is applied only when the installer is running inside WSL.
+The bootstrap installs only the prerequisites required to obtain/apply the repository, installs chezmoi in `~/.local/bin` when needed, and then runs the package installer. Linux package catalogs are declared under `scripts/linux/`. Non-interactive mode still installs and validates the complete baseline; it only skips shell changes, WSL system configuration, and optional-package prompts. Arch continues to install and manage `yay`.
 
 ## Updates
 
@@ -34,7 +36,7 @@ For dotfiles-only updates, use:
 chezmoi update
 ```
 
-For dotfiles plus package/application and module updates, use `update.cmd` on Windows or `./update.sh` on Linux. Those wrappers run `chezmoi update` first and then the platform installer in update mode.
+For dotfiles plus installer-managed package/application/module updates, use `update.cmd` on Windows or `./update.sh` on Linux. Those wrappers run `chezmoi update` first and then rerun the platform installer in update mode. Starship and managed PowerShell modules participate in update mode as well.
 
 ## State details
 
@@ -43,10 +45,12 @@ For dotfiles plus package/application and module updates, use `update.cmd` on Wi
 - `~/.gitconfig.local`, `~/.codex/config.toml`, and `~/.codex/rules/default.rules` use chezmoi create-only semantics and are not overwritten after creation.
 - Codex guidance and skills are managed normally; repository documentation is kept outside `~/.codex`.
 - PowerShell source files are unsigned templates. The post-apply hook deploys copies and signs only the runtime files when `AllSigned` is effective, so Authenticode signatures never dirty chezmoi source state.
-- Managed PowerShell modules currently include `PSFzf` and `git-aliases`. Under `AllSigned`, only their user-scoped PowerShell content is inspected and unsigned/invalid files are signed; valid publisher signatures are preserved.
+- Managed PowerShell modules are declared in `scripts/windows/managed-modules.txt`. Under `AllSigned`, managed PowerShell files are re-signed with the locally trusted dotfiles certificate unless they already carry a valid signature from that same certificate. This deliberately normalizes the publisher used by the non-interactive AllSigned path.
 
 ## CI and testing
 
-The `Validate dotfiles` workflow exercises the current chezmoi/bootstrap architecture on Debian, Arch Linux, Windows with its normal execution policy, and Windows with a simulated current-user `AllSigned` policy. GitHub Actions only orchestrates the scenarios; reusable fixture and assertion logic lives under `tests/` so it can be maintained and run independently. Integration jobs bootstrap from a temporary local bare Git remote containing the exact commit under test, then check deployment, create-only Codex files, update wrappers, idempotent apply, signatures, module loading, and clean chezmoi/source Git state.
+The `Validate dotfiles` workflow exercises Debian, Arch Linux, Windows with its normal execution policy, and Windows with a simulated current-user `AllSigned` policy. GitHub Actions only orchestrates the scenarios; reusable fixture and assertion logic lives under `tests/`.
 
-The Windows AllSigned job validates the hosted Windows Server behavior that can be reproduced in CI: current-user certificate creation and reuse, Authenticode signing, the CMD execution bridge, PowerShell profile startup, and managed module loading. When PowerShell 7 requires signed scripts, the bridge uses inbox Windows PowerShell only for Authenticode signing and executes the resulting signed script with PowerShell 7 under the effective policy. The hosted runner is an administrator with UAC disabled, so CI trusts the test certificate through `LocalMachine\\Root` plus `CurrentUser\\TrustedPublisher`; the runtime helpers also accept `CurrentUser\\Root` for the real non-admin path. Corporate GPO/MDM/AppLocker/WDAC policy, enterprise App Installer policy, and a true non-admin corporate Windows 11 token still require validation on a managed machine.
+Integration jobs bootstrap from a temporary local bare Git remote containing the exact commit under test. They run the real non-interactive baseline, validate installed CLI tools, exercise create-only Codex files and update wrappers, check idempotent chezmoi apply, and verify clean source/checkout state. Static validation includes ShellCheck, PowerShell parsing, manifest checks, chezmoi template evaluation, bridge-payload synchronization, and pinned `actionlint` validation of the workflow.
+
+The Windows AllSigned job validates current-user certificate creation and reuse, Authenticode signing, the CMD execution bridge, PowerShell profile startup, and managed module loading. When PowerShell 7 requires signed scripts, the bridge uses inbox Windows PowerShell only for Authenticode signing and executes the resulting signed script with PowerShell 7 under the effective policy. The hosted runner is an administrator with UAC disabled, so CI trusts the test certificate through `LocalMachine\Root` plus `CurrentUser\TrustedPublisher`; runtime helpers also accept `CurrentUser\Root` for the real non-admin path. Corporate GPO/MDM/AppLocker/WDAC policy, enterprise App Installer policy, and a true non-admin corporate Windows 11 token still require validation on a managed machine.

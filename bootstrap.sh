@@ -5,42 +5,10 @@ REPO_URL="${DOTFILES_REPO:-https://github.com/jsilverdev/dotfiles.git}"
 export PATH="$HOME/.local/bin:$PATH"
 DISTRO=""
 
-remove_legacy_links() {
-    local path target
-    local paths=(
-        "$HOME/.gitconfig"
-        "$HOME/.fdignore"
-        "$HOME/.npmrc"
-        "$HOME/.vimrc"
-        "$HOME/.zshenv"
-        "$HOME/.wslconfig"
-        "$HOME/.ssh/jsilverdev.pub"
-        "$HOME/.config/starship/config.toml"
-        "$HOME/.config/starship/lean.config.toml"
-        "$HOME/.config/sheldon/plugins.toml"
-        "$HOME/.config/zsh/.zshrc"
-        "$HOME/.codex/AGENTS.md"
-        "$HOME/.codex/skills/mule-munit/SKILL.md"
-        "$HOME/.codex/skills/mule-munit/agents/openai.yaml"
-    )
-
-    for path in "${paths[@]}"; do
-        if [[ -L "$path" ]]; then
-            target="$(readlink -f -- "$path" 2>/dev/null || true)"
-            if [[ "$target" == "$HOME/.dotfiles/"* ]]; then
-                rm -f -- "$path"
-            fi
-        fi
-    done
-}
-
-remove_legacy_links
-
 configure_local_chezmoi_source() {
     local config_dir config_path
     config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/chezmoi"
     config_path="$config_dir/chezmoi.toml"
-
     if [[ ! -e "$config_path" ]]; then
         mkdir -p "$config_dir"
         printf 'sourceDir = "%s"\n' "$PWD" > "$config_path"
@@ -49,11 +17,24 @@ configure_local_chezmoi_source() {
 
 if [[ -f /etc/debian_version ]] && command -v apt-get >/dev/null 2>&1; then
     DISTRO="debian"
-    sudo apt-get update
-    sudo apt-get install --yes git curl zsh
+    missing=()
+    command -v git >/dev/null 2>&1 || missing+=(git)
+    command -v curl >/dev/null 2>&1 || missing+=(curl)
+    if (( ${#missing[@]} > 0 )); then
+        sudo apt-get update
+        sudo apt-get install --yes "${missing[@]}"
+        export DOTFILES_PACKAGE_INDEX_READY=1
+    fi
 elif [[ -f /etc/arch-release ]] && command -v pacman >/dev/null 2>&1; then
     DISTRO="arch"
-    sudo pacman -Syu --noconfirm --needed git curl zsh chezmoi
+    missing=()
+    command -v git >/dev/null 2>&1 || missing+=(git)
+    command -v curl >/dev/null 2>&1 || missing+=(curl)
+    command -v chezmoi >/dev/null 2>&1 || missing+=(chezmoi)
+    if (( ${#missing[@]} > 0 )); then
+        sudo pacman -Syu --noconfirm --needed "${missing[@]}"
+        export DOTFILES_PACKAGE_INDEX_READY=1
+    fi
 else
     printf 'Unsupported Linux distribution. Debian and Arch Linux are supported.\n' >&2
     exit 1
@@ -61,12 +42,12 @@ fi
 
 command -v git >/dev/null 2>&1 || { printf 'Git is required but unavailable.\n' >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { printf 'curl is required but unavailable.\n' >&2; exit 1; }
-command -v zsh >/dev/null 2>&1 || { printf 'zsh is required but unavailable.\n' >&2; exit 1; }
 
 if [[ "$DISTRO" == "debian" ]] && ! command -v chezmoi >/dev/null 2>&1; then
     mkdir -p "$HOME/.local/bin"
     sh -c "$(curl -fsLS get.chezmoi.io)" -- -b "$HOME/.local/bin"
 fi
+
 export PATH="$HOME/.local/bin:$PATH"
 command -v chezmoi >/dev/null 2>&1 || { printf 'chezmoi installation failed.\n' >&2; exit 1; }
 

@@ -116,9 +116,8 @@ foreach ($path in $paths) {
     }
 }
 
-# The workflow separately proves that unsigned scripts are rejected. The bridge
-# sets this variable only on the signed execution path, so the assertion avoids
-# autoloading Microsoft.PowerShell.Security inside pwsh under AllSigned.
+# The bridge sets this variable only on the signed execution path. The assertion
+# avoids autoloading Microsoft.PowerShell.Security inside pwsh under AllSigned.
 if ($env:DOTFILES_SIGNING_REQUIRED -ne "1") {
     Fail "assert-allsigned.ps1 was not executed through the AllSigned signing path"
 }
@@ -212,10 +211,16 @@ function Assert-CleanChezMoi {
 
 $sourcePath = ((Invoke-Chezmoi @("source-path")) -join "").Trim()
 Write-Host "chezmoi source-path: $sourcePath"
-foreach ($command in @("micro", "lsd", "bat", "fastfetch", "fzf", "fd", "delta", "jq", "rg", "mise")) {
-    if (-not (Get-Command -Name $command -ErrorAction SilentlyContinue)) {
-        Fail "core CLI tool is unavailable: $command"
+$managedAppsPath = Join-Path $RepoRoot "scripts\windows\managed-apps.csv"
+$coreApps = @(Import-Csv -LiteralPath $managedAppsPath | Where-Object Category -eq "core")
+foreach ($app in $coreApps) {
+    if ([string]::IsNullOrWhiteSpace($app.Alias)) { continue }
+    if (-not (Get-Command -Name $app.Alias -ErrorAction SilentlyContinue)) {
+        Fail "baseline CLI tool is unavailable: $($app.Alias)"
     }
+}
+if (-not (Get-Command -Name starship -ErrorAction SilentlyContinue)) {
+    Fail "starship is unavailable"
 }
 Invoke-Chezmoi @("apply") | Out-Host
 Invoke-Chezmoi @("apply") | Out-Host

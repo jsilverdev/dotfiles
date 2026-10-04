@@ -1,0 +1,18 @@
+# Packages installed through APT. Release-fallback tools are handled by install.sh.
+git
+curl
+zsh
+micro
+jq
+tree
+python3
+ufw
+rsync
+zip
+unzip
+less
+socat
+bat
+fd-find
+binutils
+ripgrep

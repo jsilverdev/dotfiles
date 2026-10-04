@@ -5,14 +5,12 @@ param(
 
     [switch]$NonInteractive,
 
-    [switch]$CoreOnly,
 
     [string]$RepoRoot
 )
 
 $ErrorActionPreference = "Stop"
 $NonInteractive = $NonInteractive -or $env:DOTFILES_NONINTERACTIVE -eq "1"
-$CoreOnly = $CoreOnly -or $env:DOTFILES_CORE_ONLY -eq "1"
 
 if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
     $RepoRoot = $PSScriptRoot
@@ -23,6 +21,15 @@ if (-not (Test-Path -LiteralPath $managedModulesPath -PathType Leaf)) {
     throw "The managed PowerShell module list is missing from $RepoRoot."
 }
 $ManagedModules = @(Get-Content -LiteralPath $managedModulesPath | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
+
+$managedAppsPath = Join-Path $RepoRoot "scripts\windows\managed-apps.csv"
+if (-not (Test-Path -LiteralPath $managedAppsPath -PathType Leaf)) {
+    throw "The managed WinGet application catalog is missing from $RepoRoot."
+}
+$ManagedApps = @(Import-Csv -LiteralPath $managedAppsPath)
+if ($ManagedApps.Count -eq 0) {
+    throw "The managed WinGet application catalog is empty."
+}
 
 function Refresh-Path {
     $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -122,92 +129,85 @@ function Install-WithWinget {
     param(
         [Parameter(Mandatory)][string]$AppId,
         [string]$Alias,
+        [string]$Scope,
         [switch]$Update
     )
 
-    $installed = $false
-    if ($Alias) {
-        $installed = $null -ne (Get-Command -Name $Alias -ErrorAction SilentlyContinue)
+    $installed = if ($Alias) {
+        $null -ne (Get-Command -Name $Alias -ErrorAction SilentlyContinue)
     }
     else {
         & winget list --id $AppId --exact --source winget --accept-source-agreements *> $null
-        $installed = $LASTEXITCODE -eq 0
+        $LASTEXITCODE -eq 0
+    }
+
+    $scopeArgs = @()
+    if (-not [string]::IsNullOrWhiteSpace($Scope)) {
+        $scopeArgs = @("--scope", $Scope)
     }
 
     if (-not $installed) {
         Write-Host "Installing $AppId..." -ForegroundColor Cyan
-        & winget install --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
-        if ($LASTEXITCODE -ne 0) { throw "WinGet could not install $AppId." }
+        & winget install --id $AppId --exact --source winget @scopeArgs --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+        if ($LASTEXITCODE -ne 0) { throw "WinGet could not install $AppId in scope '$Scope' (exit code $LASTEXITCODE)." }
+        return
     }
-    elseif ($Update) {
-        $upgradeCandidates = @(
-            & winget list --upgrade-available --id $AppId --exact --source winget --accept-source-agreements 2>&1 |
-                ForEach-Object { [string]$_ }
-        )
-        $upgradeAvailable = @($upgradeCandidates | Where-Object {
-            $_ -match [regex]::Escape($AppId)
-        }).Count -gt 0
 
-        if (-not $upgradeAvailable) {
-            Write-Host "$AppId is already up to date" -ForegroundColor Green
-        }
-        else {
-            Write-Host "Updating $AppId..." -ForegroundColor Yellow
-            & winget upgrade --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
-            if ($LASTEXITCODE -ne 0) {
-                throw "WinGet could not update $AppId (exit code $LASTEXITCODE)."
-            }
-        }
-    }
-    else {
+    if (-not $Update) {
         Write-Host "$AppId is already installed" -ForegroundColor Green
+        return
     }
+
+    $upgradeCandidates = @(
+        & winget list --upgrade-available --id $AppId --exact --source winget --accept-source-agreements 2>&1 |
+            ForEach-Object { [string]$_ }
+    )
+    $upgradeAvailable = @($upgradeCandidates | Where-Object { $_ -match [regex]::Escape($AppId) }).Count -gt 0
+    if (-not $upgradeAvailable) {
+        Write-Host "$AppId is already up to date" -ForegroundColor Green
+        return
+    }
+
+    Write-Host "Updating $AppId..." -ForegroundColor Yellow
+    & winget upgrade --id $AppId --exact --source winget @scopeArgs --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+    if ($LASTEXITCODE -ne 0) { throw "WinGet could not update $AppId (exit code $LASTEXITCODE)." }
 }
 
 function Install-MustHaveApps {
-    Write-Host "Installing must-have apps..." -ForegroundColor Cyan
+    Write-Host "Installing baseline apps..." -ForegroundColor Cyan
 
-    $corePackages = @(
-        @{ AppId = "zyedidia.micro"; Alias = "micro" },
-        @{ AppId = "lsd-rs.lsd"; Alias = "lsd" },
-        @{ AppId = "sharkdp.bat"; Alias = "bat" },
-        @{ AppId = "Fastfetch-cli.Fastfetch"; Alias = "fastfetch" },
-        @{ AppId = "junegunn.fzf"; Alias = "fzf" },
-        @{ AppId = "sharkdp.fd"; Alias = "fd" },
-        @{ AppId = "dandavison.delta"; Alias = "delta" },
-        @{ AppId = "jqlang.jq"; Alias = "jq" },
-        @{ AppId = "BurntSushi.ripgrep.MSVC"; Alias = "rg" },
-        @{ AppId = "jdx.mise"; Alias = "mise" }
-    )
-    $workstationPackages = @(
-        @{ AppId = "7zip.7zip"; Alias = $null },
-        @{ AppId = "Microsoft.PowerToys"; Alias = $null },
-        @{ AppId = "Microsoft.VisualStudioCode"; Alias = "code" }
-    )
-
-    foreach ($package in $corePackages) {
-        Install-WithWinget -AppId $package.AppId -Alias $package.Alias -Update:$Update
+    $coreApps = @($ManagedApps | Where-Object Category -eq "core")
+    foreach ($app in $coreApps) {
+        Install-WithWinget -AppId $app.AppId -Alias $app.Alias -Scope $app.Scope -Update:$Update
     }
-    if (-not $CoreOnly) {
-        foreach ($package in $workstationPackages) {
-            Install-WithWinget -AppId $package.AppId -Alias $package.Alias -Update:$Update
+
+    if (-not $NonInteractive) {
+        foreach ($app in @($ManagedApps | Where-Object Category -eq "workstation")) {
+            Install-WithWinget -AppId $app.AppId -Alias $app.Alias -Scope $app.Scope -Update:$Update
         }
     }
     else {
-        Write-Host "Skipping workstation-only WinGet packages in core-only mode." -ForegroundColor Yellow
+        Write-Host "Skipping workstation applications in non-interactive mode." -ForegroundColor Yellow
     }
 
     Refresh-Path
-    foreach ($command in @("micro", "lsd", "bat", "fastfetch", "fzf", "fd", "delta", "jq", "rg", "mise")) {
-        if (-not (Get-Command -Name $command -ErrorAction SilentlyContinue)) {
-            throw "Core CLI tool '$command' is unavailable after WinGet provisioning."
+    foreach ($app in $coreApps) {
+        if ([string]::IsNullOrWhiteSpace($app.Alias)) { continue }
+        if (-not (Get-Command -Name $app.Alias -ErrorAction SilentlyContinue)) {
+            throw "Baseline CLI tool '$($app.Alias)' is unavailable after WinGet provisioning."
         }
     }
 
-    & mise which starship *> $null
-    if ($LASTEXITCODE -ne 0) {
+    if ($Update) {
         & mise use -g starship@latest
-        if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
+        if ($LASTEXITCODE -ne 0) { throw "mise could not update starship." }
+    }
+    else {
+        & mise which starship *> $null
+        if ($LASTEXITCODE -ne 0) {
+            & mise use -g starship@latest
+            if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
+        }
     }
 
     $allSigned = $env:DOTFILES_SIGNING_REQUIRED -eq "1"
@@ -240,24 +240,16 @@ function Install-MustHaveApps {
 
         if ($null -eq $installedModule) {
             Write-Host "Installing $module module..." -ForegroundColor Cyan
-            if ($allSigned) {
-                Save-ManagedModuleForAllSigned -Name $module
-            }
-            else {
-                Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false
-            }
+            if ($allSigned) { Save-ManagedModuleForAllSigned -Name $module }
+            else { Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false }
         }
-        elseif ($Update -and -not $CoreOnly) {
+        elseif ($Update) {
             Write-Host "Updating $module module..." -ForegroundColor Yellow
-            if ($allSigned) {
-                Save-ManagedModuleForAllSigned -Name $module
-            }
+            if ($allSigned) { Save-ManagedModuleForAllSigned -Name $module }
             elseif ($null -ne $installedResource -and (Get-Command Update-PSResource -ErrorAction SilentlyContinue)) {
                 Update-PSResource -Name $module -Scope CurrentUser -Force
             }
-            else {
-                Update-Module -Name $module -Force
-            }
+            else { Update-Module -Name $module -Force }
         }
         else {
             Write-Host "$module module is already installed" -ForegroundColor Green
@@ -269,26 +261,16 @@ function Install-MustHaveApps {
 
 function Install-OptionalApps {
     if ($NonInteractive) {
-        Write-Host "Skipping optional installs in non-interactive mode..." -ForegroundColor Yellow
+        Write-Host "Skipping optional applications in non-interactive mode." -ForegroundColor Yellow
         return
     }
 
-    $optionalApps = @(
-        @{ name = "Google Chrome"; install = { Install-WithWinget -AppId "Google.Chrome" -Update:$Update } },
-        @{ name = "KeepassXC"; install = { Install-WithWinget -AppId "KeePassXCTeam.KeePassXC" -Update:$Update } },
-        @{ name = "DBeaver"; install = { Install-WithWinget -AppId "dbeaver.dbeaver" -Update:$Update } },
-        @{ name = "Postman"; install = { Install-WithWinget -AppId "Postman.Postman" -Update:$Update } },
-        @{ name = "Bruno"; install = { Install-WithWinget -AppId "Bruno.Bruno" -Update:$Update } },
-        @{ name = "kubectl"; install = { Install-WithWinget -AppId "Kubernetes.kubectl" -Alias "kubectl" -Update:$Update } },
-        @{ name = "GIMP"; install = { Install-WithWinget -AppId "GIMP.GIMP" -Update:$Update } },
-        @{ name = "Android Studio"; install = { Install-WithWinget -AppId "Google.AndroidStudio" -Update:$Update } },
-        @{ name = "Steam"; install = { Install-WithWinget -AppId "Valve.Steam" -Update:$Update } },
-        @{ name = "Discord"; install = { Install-WithWinget -AppId "Discord.Discord" -Update:$Update } },
-        @{ name = "npiperelay"; install = { Install-WithWinget -AppId "albertony.npiperelay" -Alias "npiperelay" -Update:$Update } }
-    )
+    $optionalApps = @($ManagedApps | Where-Object Category -eq "optional")
     Write-Host "             Optionals"
     Write-Host "-----------------------------------" -ForegroundColor Cyan
-    for ($i = 0; $i -lt $optionalApps.Count; $i++) { Write-Host ("{0}. Install {1}" -f ($i + 1), $optionalApps[$i].name) }
+    for ($i = 0; $i -lt $optionalApps.Count; $i++) {
+        Write-Host ("{0}. Install {1}" -f ($i + 1), $optionalApps[$i].Name)
+    }
     Write-Host "You can use ranges like 1-4 or individual numbers separated by commas" -ForegroundColor Yellow
 
     $rawOptions = Read-Host "Select options [e.g. 1-4,8,10]"
@@ -298,13 +280,16 @@ function Install-OptionalApps {
         if ($option -match '^(\d+)-(\d+)$' -and [int]$Matches[1] -le [int]$Matches[2]) {
             $options += [int]$Matches[1]..[int]$Matches[2]
         }
-        elseif ($option -match '^\d+$') { $options += [int]$option }
+        elseif ($option -match '^\d+$') {
+            $options += [int]$option
+        }
     }
+
     $options = @($options | Where-Object { $_ -gt 0 -and $_ -le $optionalApps.Count } | Select-Object -Unique | Sort-Object)
     foreach ($index in $options) {
-        Write-Host "Installing $($optionalApps[$index - 1].name)..." -ForegroundColor Cyan
         $app = $optionalApps[$index - 1]
-        & $app.install
+        Write-Host "Installing $($app.Name)..." -ForegroundColor Cyan
+        Install-WithWinget -AppId $app.AppId -Alias $app.Alias -Scope $app.Scope -Update:$Update
     }
     if ($options.Count -eq 0) { Write-Host "Skipping optional installs..." -ForegroundColor Yellow }
     Refresh-Path
@@ -313,27 +298,32 @@ function Install-OptionalApps {
 function Download-Fonts {
     $fonts = Join-Path $RepoRoot "fonts"
     New-Item -ItemType Directory -Force -Path $fonts | Out-Null
-    $cascadia = Join-Path $fonts "CascadiaCode"
-    if (-not (Test-Path "${cascadia}.ttf")) {
+
+    if (-not (Test-Path (Join-Path $fonts "CascadiaCode.ttf"))) {
         $release = Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/cascadia-code/releases/latest" -Headers @{ "User-Agent" = "PowerShell" }
-        Invoke-WebRequest -Uri $release.assets[0].browser_download_url -OutFile "${cascadia}.zip"
-        Expand-Archive "${cascadia}.zip" -DestinationPath $cascadia
-        Remove-Item -Recurse -Force "${cascadia}\ttf\static" -ErrorAction SilentlyContinue
-        Get-ChildItem -Path "${cascadia}\*.ttf" -Recurse | Move-Item -Destination $fonts
-        Remove-Item -Recurse -Force "${cascadia}.zip", $cascadia
+        $asset = @($release.assets | Where-Object name -Match '^CascadiaCode-.*\.zip$' | Select-Object -First 1)
+        if ($asset.Count -ne 1) { throw "Unable to locate the Cascadia Code ZIP asset in the latest GitHub release." }
+
+        $zip = Join-Path $fonts "CascadiaCode.zip"
+        $extract = Join-Path $fonts "CascadiaCode"
+        Invoke-WebRequest -Uri $asset[0].browser_download_url -OutFile $zip
+        Expand-Archive $zip -DestinationPath $extract -Force
+        Remove-Item -Recurse -Force (Join-Path $extract "ttf\static") -ErrorAction SilentlyContinue
+        Get-ChildItem -Path $extract -Filter *.ttf -Recurse -File | Move-Item -Destination $fonts -Force
+        Remove-Item -Recurse -Force $zip, $extract
     }
+
+    $nerdRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" -Headers @{ "User-Agent" = "PowerShell" }
     foreach ($font in @(
         @{ folder = (Join-Path $fonts "CaskaydiaCoveNerdFont"); filename = "CascadiaCode" },
         @{ folder = (Join-Path $fonts "CaskaydiaMonoNerdFont"); filename = "CascadiaMono" }
     )) {
-        if (-not (Test-Path "$($font.folder)-Regular.ttf")) {
-            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/ryanoasis/nerd-fonts/releases/latest" -Headers @{ "User-Agent" = "PowerShell" }
-            $zip = "$($font.folder).zip"
-            Invoke-WebRequest -Uri "https://github.com/ryanoasis/nerd-fonts/releases/download/$($release.tag_name)/$($font.filename).zip" -OutFile $zip
-            Expand-Archive $zip -DestinationPath $font.folder
-            Get-ChildItem -Path "$($font.folder)\*.ttf" -Recurse | Move-Item -Destination $fonts
-            Remove-Item -Recurse -Force $zip, $font.folder
-        }
+        if (Test-Path "$($font.folder)-Regular.ttf") { continue }
+        $zip = "$($font.folder).zip"
+        Invoke-WebRequest -Uri "https://github.com/ryanoasis/nerd-fonts/releases/download/$($nerdRelease.tag_name)/$($font.filename).zip" -OutFile $zip
+        Expand-Archive $zip -DestinationPath $font.folder -Force
+        Get-ChildItem -Path $font.folder -Filter *.ttf -Recurse -File | Move-Item -Destination $fonts -Force
+        Remove-Item -Recurse -Force $zip, $font.folder
     }
 }
 
@@ -368,27 +358,33 @@ function Configure-WindowsTerminal {
 }
 
 function Configure-Wsl {
-    if ($NonInteractive -or $CoreOnly) {
-        Write-Host "Skipping WSL installation in non-interactive/core-only mode..." -ForegroundColor Yellow
+    if ($NonInteractive) {
+        Write-Host "Skipping WSL installation in non-interactive mode." -ForegroundColor Yellow
         return
     }
-
-    if (Get-Command wsl -ErrorAction SilentlyContinue) { Write-Host "Installing WSL..." -ForegroundColor Cyan; & wsl --install --no-distribution }
+    if (Get-Command wsl -ErrorAction SilentlyContinue) {
+        Write-Host "Installing WSL..." -ForegroundColor Cyan
+        & wsl --install --no-distribution
+    }
 }
 
 Refresh-Path
 Check-RequiredApps
-if (-not $CoreOnly) {
+
+if (-not $NonInteractive) {
     Download-Fonts
     Install-UserFonts
 }
+
 Configure-Git
 Install-MustHaveApps
-if (-not $CoreOnly) {
+
+if (-not $NonInteractive) {
     Configure-WindowsTerminal
     Install-OptionalApps
 }
 else {
-    Write-Host "Skipping optional applications in core-only mode." -ForegroundColor Yellow
+    Write-Host "Skipping fonts, terminal configuration, and optional applications in non-interactive mode." -ForegroundColor Yellow
 }
+
 Configure-Wsl

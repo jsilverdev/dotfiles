@@ -5,12 +5,9 @@ expected_distro="${1:?expected distribution (debian or arch) is required}"
 expected_commit="${2:-}"
 repo_root="${GITHUB_WORKSPACE:-$(pwd)}"
 
-fail() {
-    printf 'ASSERTION FAILED: %s\n' "$1" >&2
-    exit 1
-}
+fail() { printf 'ASSERTION FAILED: %s\n' "$1" >&2; exit 1; }
 
-printf 'distribution: %s\n' "$(cat /etc/os-release | tr '\n' ' ')"
+printf 'distribution: %s\n' "$(tr '\n' ' ' < /etc/os-release)"
 printf 'uname: %s\n' "$(uname -a)"
 printf 'user: %s (%s)\n' "$(id -un)" "$(id -u)"
 printf 'HOME: %s\n' "$HOME"
@@ -23,35 +20,35 @@ case "$expected_distro" in
     *) fail "unknown expected distribution: $expected_distro" ;;
 esac
 
-command -v apt-get >/dev/null 2>&1 || [[ "$expected_distro" != debian ]] || fail "apt-get is unavailable on Debian"
-command -v pacman >/dev/null 2>&1 || [[ "$expected_distro" != arch ]] || fail "pacman is unavailable on Arch"
 sudo -n true || fail "the CI user does not have passwordless sudo"
 
 required_files=(
-    "$HOME/.gitconfig"
-    "$HOME/.gitconfig.local"
-    "$HOME/.fdignore"
-    "$HOME/.zshenv"
-    "$HOME/.config/zsh/.zshrc"
-    "$HOME/.config/zsh/lib/aliases.zsh"
-    "$HOME/.config/zsh/lib/completions.zsh"
-    "$HOME/.config/zsh/lib/key-bindings.zsh"
-    "$HOME/.config/zsh/lib/sheldon.zsh"
-    "$HOME/.config/starship/config.toml"
-    "$HOME/.config/starship/lean.config.toml"
-    "$HOME/.config/sheldon/plugins.toml"
-    "$HOME/.codex/AGENTS.md"
-    "$HOME/.codex/skills/mule-munit/SKILL.md"
+    "$HOME/.gitconfig" "$HOME/.gitconfig.local" "$HOME/.fdignore" "$HOME/.zshenv"
+    "$HOME/.config/zsh/.zshrc" "$HOME/.config/zsh/lib/aliases.zsh"
+    "$HOME/.config/zsh/lib/completions.zsh" "$HOME/.config/zsh/lib/key-bindings.zsh"
+    "$HOME/.config/zsh/lib/sheldon.zsh" "$HOME/.config/starship/config.toml"
+    "$HOME/.config/starship/lean.config.toml" "$HOME/.config/sheldon/plugins.toml"
+    "$HOME/.codex/AGENTS.md" "$HOME/.codex/skills/mule-munit/SKILL.md"
     "$HOME/.codex/skills/mule-munit/agents/openai.yaml"
 )
-for path in "${required_files[@]}"; do
-    [[ -f "$path" ]] || fail "expected deployed file is missing: $path"
-done
+for path in "${required_files[@]}"; do [[ -f "$path" ]] || fail "expected deployed file is missing: $path"; done
+
+while IFS= read -r requirement; do
+    [[ -n "$requirement" && "$requirement" != \#* ]] || continue
+    found=false
+    IFS='|' read -r -a candidates <<< "$requirement"
+    for command_name in "${candidates[@]}"; do
+        if command -v "$command_name" >/dev/null 2>&1; then found=true; break; fi
+    done
+    [[ "$found" == true ]] || fail "required baseline command is unavailable: $requirement"
+done < "$repo_root/scripts/linux/required-commands.txt"
+
+if [[ "$expected_distro" == "arch" ]]; then command -v yay >/dev/null 2>&1 || fail "yay is unavailable on Arch"; fi
 
 assert_clean() {
     local status
     status="$(chezmoi status)"
-    [[ -z "$status" ]] || fail "chezmoi status is not clean:\n$status"
+    [[ -z "$status" ]] || fail "chezmoi status is not clean: $status"
 }
 
 chezmoi apply

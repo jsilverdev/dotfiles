@@ -1,0 +1,25 @@
+# Packages installed through pacman. yay remains managed separately from AUR.
+git
+curl
+zsh
+micro
+fastfetch
+tree
+jq
+lsd
+fd
+fzf
+vivid
+git-delta
+starship
+sheldon
+bat
+python
+ufw
+rsync
+zip
+unzip
+less
+socat
+binutils
+ripgrep

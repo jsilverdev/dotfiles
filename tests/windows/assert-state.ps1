@@ -64,10 +64,16 @@ if ($ExpectedCommit) {
     if ($LASTEXITCODE -ne 0 -or $sourceCommit -ne $ExpectedCommit) { Fail "source commit $sourceCommit is not expected commit $ExpectedCommit" }
 }
 
-foreach ($command in @("micro", "lsd", "bat", "fastfetch", "fzf", "fd", "delta", "jq", "rg", "mise")) {
-    if (-not (Get-Command -Name $command -ErrorAction SilentlyContinue)) {
-        Fail "core CLI tool is unavailable: $command"
+$managedAppsPath = Join-Path $RepoRoot "scripts\windows\managed-apps.csv"
+$coreApps = @(Import-Csv -LiteralPath $managedAppsPath | Where-Object Category -eq "core")
+foreach ($app in $coreApps) {
+    if ([string]::IsNullOrWhiteSpace($app.Alias)) { continue }
+    if (-not (Get-Command -Name $app.Alias -ErrorAction SilentlyContinue)) {
+        Fail "baseline CLI tool is unavailable: $($app.Alias)"
     }
+}
+if (-not (Get-Command -Name starship -ErrorAction SilentlyContinue)) {
+    Fail "starship is unavailable"
 }
 
 Invoke-Chezmoi @("apply") | Out-Host

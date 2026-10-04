@@ -6,8 +6,6 @@ if defined DOTFILES_REPO (
 ) else (
     set "REPO_URL=https://github.com/jsilverdev/dotfiles.git"
 )
-call :remove_legacy_broken_links
-if errorlevel 1 goto bootstrap_failed
 where winget.exe >nul 2>&1
 if errorlevel 1 (
     echo WinGet is not registered for this user. Attempting App Installer registration...
@@ -26,8 +24,6 @@ call :ensure_package Git.Git git
 if errorlevel 1 goto bootstrap_failed
 call :ensure_package Microsoft.PowerShell pwsh
 if errorlevel 1 goto bootstrap_failed
-call :ensure_package jdx.mise mise
-if errorlevel 1 goto bootstrap_failed
 call :ensure_package twpayne.chezmoi chezmoi
 if errorlevel 1 goto bootstrap_failed
 call :refresh_path
@@ -39,11 +35,6 @@ if errorlevel 1 (
 where pwsh.exe >nul 2>&1
 if errorlevel 1 (
     echo PowerShell 7 is still unavailable after installation. 1>&2
-    goto bootstrap_failed
-)
-where mise.exe >nul 2>&1
-if errorlevel 1 (
-    echo mise is still unavailable after installation. 1>&2
     goto bootstrap_failed
 )
 where chezmoi.exe >nul 2>&1
@@ -65,12 +56,8 @@ if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" (
     echo Resolved chezmoi working tree does not contain the dotfiles scripts: "%REPO_ROOT%" 1>&2
     goto bootstrap_failed
 )
-if /I "%DOTFILES_NONINTERACTIVE%"=="1" if /I "%DOTFILES_CORE_ONLY%"=="1" (
-    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -CoreOnly -RepoRoot "%REPO_ROOT%"
-) else if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
+if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -RepoRoot "%REPO_ROOT%"
-) else if /I "%DOTFILES_CORE_ONLY%"=="1" (
-    call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -CoreOnly -RepoRoot "%REPO_ROOT%"
 ) else (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -RepoRoot "%REPO_ROOT%"
 )
@@ -89,16 +76,6 @@ echo Installing %PACKAGE_ID% for the current user...
 winget.exe install --id "%PACKAGE_ID%" --exact --source winget --scope user --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
 if errorlevel 1 (
     echo Unable to install %PACKAGE_ID% without administrator rights. No machine-scope or portable fallback will be attempted. 1>&2
-    exit /b 1
-)
-exit /b 0
-
-:remove_legacy_broken_links
-rem Remove only broken legacy links so Git and chezmoi can migrate them
-rem to regular files. Existing valid links and unrelated junctions are kept.
-"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "$paths = @('%USERPROFILE%\.gitconfig','%USERPROFILE%\.gitconfig.local','%USERPROFILE%\.fdignore','%USERPROFILE%\.npmrc','%USERPROFILE%\.vimrc','%USERPROFILE%\.zshenv','%USERPROFILE%\.wslconfig','%USERPROFILE%\.ssh\jsilverdev.pub','%USERPROFILE%\.config\starship\config.toml','%USERPROFILE%\.config\starship\lean.config.toml','%USERPROFILE%\.codex\AGENTS.md','%USERPROFILE%\.codex\skills\mule-munit\SKILL.md','%USERPROFILE%\.codex\skills\mule-munit\agents\openai.yaml','%USERPROFILE%\Documents\PowerShell\profile.ps1'); foreach ($path in $paths) { if (Test-Path -LiteralPath $path) { $item = Get-Item -LiteralPath $path -Force; if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -and -not (Test-Path -LiteralPath $item.Target)) { Remove-Item -LiteralPath $path -Force } } }"
-if errorlevel 1 (
-    echo Unable to clean broken legacy dotfile links. 1>&2
     exit /b 1
 )
 exit /b 0

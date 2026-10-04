@@ -1,5 +1,14 @@
-
-$env:VISUAL = "code"
+$preferredEditor = if (Get-Command code -ErrorAction SilentlyContinue) {
+    "code"
+}
+elseif (Get-Command micro -ErrorAction SilentlyContinue) {
+    "micro"
+}
+else {
+    "notepad"
+}
+$env:VISUAL = $preferredEditor
+$env:EDITOR = $preferredEditor
 $env:PAGER = "delta"
 $env:PYTHONIOENCODING = "utf-8"
 
