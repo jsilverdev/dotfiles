@@ -99,14 +99,23 @@ function Install-WithWinget {
         if ($LASTEXITCODE -ne 0) { throw "WinGet could not install $AppId." }
     }
     elseif ($Update) {
-        Write-Host "Updating $AppId..." -ForegroundColor Yellow
-        & winget upgrade --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
-        $upgradeExitCode = $LASTEXITCODE
-        if ($upgradeExitCode -eq -1978335189) {
+        $upgradeCandidates = @(
+            & winget list --upgrade-available --id $AppId --exact --source winget --accept-source-agreements 2>&1 |
+                ForEach-Object { [string]$_ }
+        )
+        $upgradeAvailable = @($upgradeCandidates | Where-Object {
+            $_ -match [regex]::Escape($AppId)
+        }).Count -gt 0
+
+        if (-not $upgradeAvailable) {
             Write-Host "$AppId is already up to date" -ForegroundColor Green
         }
-        elseif ($upgradeExitCode -ne 0) {
-            throw "WinGet could not update $AppId (exit code $upgradeExitCode)."
+        else {
+            Write-Host "Updating $AppId..." -ForegroundColor Yellow
+            & winget upgrade --id $AppId --exact --source winget --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+            if ($LASTEXITCODE -ne 0) {
+                throw "WinGet could not update $AppId (exit code $LASTEXITCODE)."
+            }
         }
     }
     else {
