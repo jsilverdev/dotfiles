@@ -104,35 +104,20 @@ function Protect-PowerShellFile {
     }
 }
 
-function Test-UserModulePath {
-    param([string]$ModulePath)
-
-    $fullPath = [IO.Path]::GetFullPath($ModulePath).TrimEnd([IO.Path]::DirectorySeparatorChar)
-    $userRoots = @(
-        (Join-Path $HOME "Documents\PowerShell\Modules"),
-        (Join-Path $HOME ".local\share\powershell\Modules")
-    ) + @($env:PSModulePath -split [IO.Path]::PathSeparator | Where-Object { $_ -and $_ -like "$HOME*" })
-
-    foreach ($root in ($userRoots | Select-Object -Unique)) {
-        $fullRoot = [IO.Path]::GetFullPath($root).TrimEnd([IO.Path]::DirectorySeparatorChar)
-        if ($fullPath.Equals($fullRoot, [StringComparison]::OrdinalIgnoreCase) -or
-            $fullPath.StartsWith($fullRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
-            return $true
-        }
-    }
-
-    return $false
-}
-
 function Get-ManagedModuleFiles {
     param([Parameter(Mandatory)][string]$Name)
 
-    $moduleDirectories = @(Get-Module -ListAvailable -Name $Name |
-        Where-Object { $_.ModuleBase -and (Test-UserModulePath $_.ModuleBase) } |
-        Select-Object -ExpandProperty ModuleBase -Unique)
+    $userRoots = @(
+        (Join-Path $HOME "Documents\PowerShell\Modules"),
+        (Join-Path $HOME ".local\share\powershell\Modules")
+    )
+    $moduleDirectories = @($userRoots | ForEach-Object {
+        $candidate = Join-Path $_ $Name
+        if (Test-Path -LiteralPath $candidate -PathType Container) { $candidate }
+    } | Select-Object -Unique)
 
     if ($moduleDirectories.Count -eq 0) {
-        throw "Managed PowerShell module '$Name' was not found in a current-user module path."
+        throw "Managed PowerShell module '$Name' was not found in a current-user PowerShell module root."
     }
 
     $extensions = @("*.ps1", "*.psm1", "*.psd1", "*.ps1xml", "*.cdxml", "*.xaml")
@@ -143,9 +128,9 @@ function Get-ManagedModuleFiles {
     } | Select-Object -ExpandProperty FullName -Unique)
 }
 
-# Use PowerShell's effective policy instead of implementation-specific registry paths.
-# This covers PowerShell 7.6 CurrentUser policy storage and enterprise GPO precedence.
-if ((Get-ExecutionPolicy) -ne "AllSigned") {
+# The bridge sets DOTFILES_SIGNING_REQUIRED after PowerShell 7 proves that
+# unsigned scripts are blocked. Direct/manual calls still use the effective policy.
+if ($env:DOTFILES_SIGNING_REQUIRED -ne "1" -and (Get-ExecutionPolicy) -ne "AllSigned") {
     return
 }
 

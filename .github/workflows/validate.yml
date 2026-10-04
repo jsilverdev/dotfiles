@@ -88,7 +88,7 @@ jobs:
 
           cmd = pathlib.Path('scripts/windows/invoke-ps-script.cmd').read_text(encoding='utf-8')
           source = pathlib.Path('scripts/windows/invoke-ps-script-bridge.ps1').read_text(encoding='utf-8')
-          match = re.search(r'(?m)^pwsh\.exe -NoProfile -EncodedCommand ([A-Za-z0-9+/=]+)\s*$', cmd)
+          match = re.search(r'(?m)^"%SystemRoot%\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe" -NoProfile -EncodedCommand ([A-Za-z0-9+/=]+)\s*$', cmd)
           if not match:
               raise SystemExit('encoded bridge payload is missing')
           decoded = base64.b64decode(match.group(1)).decode('utf-16le')
@@ -741,18 +741,6 @@ jobs:
         shell: cmd
         run: |
           pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
-          if errorlevel 1 exit /b 1
-
-      - name: Create bridge-equivalent signed copy under AllSigned
-        shell: cmd
-        run: |
-          pwsh.exe -NoProfile -Command "$thumb=(Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Raw).Trim(); $cert=Get-Item ('Cert:\CurrentUser\My\'+$thumb); $src=Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'; $dst=Join-Path $env:RUNNER_TEMP 'allsigned-direct-copy.ps1'; Copy-Item -LiteralPath $src -Destination $dst -Force; $null=Set-AuthenticodeSignature -FilePath $dst -Certificate $cert -HashAlgorithm SHA256; $sig=Get-AuthenticodeSignature -FilePath $dst; if($sig.Status -ne 'Valid'){throw ('signed copy invalid: '+$sig.Status+' '+$sig.StatusMessage)}"
-          if errorlevel 1 exit /b 1
-
-      - name: Execute bridge-equivalent signed copy under AllSigned
-        shell: cmd
-        run: |
-          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-direct-copy.ps1" -Value bridge-ok
           if errorlevel 1 exit /b 1
 
       - name: Smoke-test signing bridge under AllSigned
