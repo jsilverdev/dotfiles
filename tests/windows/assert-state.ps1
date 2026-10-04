@@ -59,6 +59,20 @@ foreach ($path in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "expected deployed file is missing: $path" }
 }
 
+$runtimeFiles = @(
+    (Join-Path $HOME ".config\pwsh\env.ps1"),
+    (Join-Path $HOME ".config\pwsh\lib\helpers.ps1"),
+    (Join-Path $HOME ".config\pwsh\lib\aliases.ps1"),
+    $PROFILE.CurrentUserAllHosts
+)
+foreach ($path in $runtimeFiles) {
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "PowerShell runtime file is missing: $path" }
+    $item = Get-Item -LiteralPath $path -Force
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        Fail "PowerShell runtime file remained a reparse point after deployment: $path"
+    }
+}
+
 if ($ExpectedCommit) {
     $sourceCommit = ((git -C $sourcePath rev-parse HEAD) -join "").Trim()
     if ($LASTEXITCODE -ne 0 -or $sourceCommit -ne $ExpectedCommit) { Fail "source commit $sourceCommit is not expected commit $ExpectedCommit" }

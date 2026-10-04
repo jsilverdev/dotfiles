@@ -72,3 +72,19 @@ function New-BrokenDirectorySymlinkFixture {
 New-BrokenFileSymlinkFixture -Path (Join-Path $HOME ".fdignore") -Target (Join-Path $env:RUNNER_TEMP "legacy-fdignore")
 New-BrokenDirectorySymlinkFixture -Path (Join-Path $HOME ".config\starship") -Target (Join-Path $env:RUNNER_TEMP "legacy-starship")
 New-BrokenFileSymlinkFixture -Path (Join-Path $HOME ".dotfiles-ci-unrelated-broken-link") -Target (Join-Path $env:RUNNER_TEMP "unrelated-link")
+
+
+function New-BrokenRuntimeSymlinkFixture {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Name
+    )
+
+    $target = Join-Path $env:RUNNER_TEMP "legacy-pwsh-runtime\$Name"
+    New-BrokenFileSymlinkFixture -Path $Path -Target $target
+}
+
+New-BrokenRuntimeSymlinkFixture -Path (Join-Path $HOME ".config\pwsh\env.ps1") -Name "env.ps1"
+New-BrokenRuntimeSymlinkFixture -Path (Join-Path $HOME ".config\pwsh\lib\aliases.ps1") -Name "aliases.ps1"
+New-BrokenRuntimeSymlinkFixture -Path (Join-Path $HOME ".config\pwsh\lib\helpers.ps1") -Name "helpers.ps1"
+New-BrokenRuntimeSymlinkFixture -Path $PROFILE.CurrentUserAllHosts -Name "profile.ps1"

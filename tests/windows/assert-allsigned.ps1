@@ -236,6 +236,10 @@ $runtimeFiles = @(
 )
 foreach ($path in $runtimeFiles) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "runtime PowerShell file is missing: $path" }
+    $item = Get-Item -LiteralPath $path -Force
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+        Fail "runtime PowerShell file remained a reparse point after deployment: $path"
+    }
     $signatureFiles.Add($path)
 }
 
