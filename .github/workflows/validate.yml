@@ -113,6 +113,10 @@ jobs:
           set "E=%ERRORLEVEL%"
           popd
           exit /b %E%
+      - name: Assert broken managed-link cleanup
+        shell: pwsh
+        run: ./tests/windows/assert-migration.ps1
+
       - shell: pwsh
         run: ./tests/windows/assert-state.ps1 -RepoRoot $env:GITHUB_WORKSPACE -ExpectedCommit $env:GITHUB_SHA
       - shell: cmd
@@ -147,6 +151,10 @@ jobs:
           set "E=%ERRORLEVEL%"
           popd
           exit /b %E%
+      - name: Assert broken managed-link cleanup under AllSigned
+        shell: cmd
+        run: call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-migration.ps1"
+
       - shell: cmd
         run: call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt"
       - shell: cmd

@@ -12,7 +12,7 @@ Run this from a normal `cmd.exe` prompt:
 curl.exe -fsSLo "%TEMP%\dotfiles-bootstrap.cmd" https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.cmd && call "%TEMP%\dotfiles-bootstrap.cmd"
 ```
 
-The Windows bootstrap requires WinGet. If App Installer exists but WinGet is not registered for the current user, it attempts current-user App Installer registration. If corporate policy disables WinGet, it stops with an error. Bootstrap installs only Git, PowerShell 7, and chezmoi when they are missing; the platform installer owns the remaining application catalog.
+The Windows bootstrap requires WinGet. Before applying chezmoi, it removes only broken links or reparse points that block a currently managed destination path. Parent components under the user profile are checked as well, but valid links are never traversed and unrelated broken links are left untouched. If App Installer exists but WinGet is not registered for the current user, it attempts current-user App Installer registration. If corporate policy disables WinGet, it stops with an error. Bootstrap installs only Git, PowerShell 7, and chezmoi when they are missing; the platform installer owns the remaining application catalog.
 
 Baseline CLI packages are declared in `scripts/windows/managed-apps.csv` and are installed with WinGet in user scope. An interactive run also installs workstation applications, fonts, Windows Terminal customization, and offers optional applications. `DOTFILES_NONINTERACTIVE=1` installs the complete baseline but skips those interactive/workstation customizations.
 
@@ -26,7 +26,7 @@ On Debian or Arch Linux, run:
 bash <(curl -fsSL https://raw.githubusercontent.com/jsilverdev/dotfiles/main/bootstrap.sh)
 ```
 
-The bootstrap installs only the prerequisites required to obtain/apply the repository, installs chezmoi in `~/.local/bin` when needed, and then runs the package installer. Linux package catalogs are declared under `scripts/linux/`. Non-interactive mode still installs and validates the complete baseline; it only skips shell changes, WSL system configuration, and optional-package prompts. Arch continues to install and manage `yay`.
+The bootstrap installs only the prerequisites required to obtain/apply the repository, installs chezmoi in `~/.local/bin` when needed, removes only broken symlinks that block currently managed destination paths, and then applies the source state before running the package installer. Parent components under `$HOME` are checked without traversing valid symlinks, and unrelated broken links are left untouched. Linux package catalogs are declared under `scripts/linux/`. Non-interactive mode still installs and validates the complete baseline; it only skips shell changes, WSL system configuration, and optional-package prompts. Arch continues to install and manage `yay`.
 
 ## Updates
 

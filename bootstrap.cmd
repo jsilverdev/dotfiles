@@ -6,6 +6,7 @@ if defined DOTFILES_REPO (
 ) else (
     set "REPO_URL=https://github.com/jsilverdev/dotfiles.git"
 )
+set "DOTFILES_EXISTING_SOURCE=0"
 where winget.exe >nul 2>&1
 if errorlevel 1 (
     echo WinGet is not registered for this user. Attempting App Installer registration...
@@ -56,6 +57,23 @@ if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" (
     echo Resolved chezmoi working tree does not contain the dotfiles scripts: "%REPO_ROOT%" 1>&2
     goto bootstrap_failed
 )
+if "%DOTFILES_EXISTING_SOURCE%"=="1" (
+    git.exe -C "%REPO_ROOT%" pull --autostash --rebase
+    if errorlevel 1 (
+        echo Unable to update the existing chezmoi source tree. 1>&2
+        goto bootstrap_failed
+    )
+)
+call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\scripts\windows\cleanup-broken-managed-links.ps1" -RepoRoot "%REPO_ROOT%"
+if errorlevel 1 (
+    echo Broken managed-link cleanup failed. 1>&2
+    goto bootstrap_failed
+)
+chezmoi.exe --source "%REPO_ROOT%" apply
+if errorlevel 1 (
+    echo chezmoi apply failed. 1>&2
+    goto bootstrap_failed
+)
 if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -RepoRoot "%REPO_ROOT%"
 ) else (
@@ -96,19 +114,16 @@ if defined SOURCE_ROOT for %%P in ("%SOURCE_ROOT%\..") do if exist "%%~fP\instal
 exit /b 1
 
 :initialize_chezmoi
-if exist "%CD%\.chezmoiroot" (
-    chezmoi.exe --source "%CD%" apply
-    exit /b %ERRORLEVEL%
-)
+if exist "%CD%\.chezmoiroot" exit /b 0
+
 set "SOURCE_ROOT="
 for /f "delims=" %%R in ('chezmoi.exe source-path 2^>nul') do set "SOURCE_ROOT=%%R"
 if defined SOURCE_ROOT if exist "%SOURCE_ROOT%\.chezmoiroot" goto existing_chezmoi
 if defined SOURCE_ROOT for %%P in ("%SOURCE_ROOT%\..") do if exist "%%~fP\.chezmoiroot" goto existing_chezmoi
+
 chezmoi.exe init "%REPO_URL%"
-if errorlevel 1 exit /b %ERRORLEVEL%
-chezmoi.exe apply
 exit /b %ERRORLEVEL%
 
 :existing_chezmoi
-chezmoi.exe update
-exit /b %ERRORLEVEL%
+set "DOTFILES_EXISTING_SOURCE=1"
+exit /b 0

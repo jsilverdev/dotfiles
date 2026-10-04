@@ -42,3 +42,33 @@ function New-ExactCommitRemote {
 Ensure-WinGet
 Add-CiUserPaths
 New-ExactCommitRemote
+
+
+function New-BrokenFileSymlinkFixture {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Target
+    )
+
+    New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($Path)) | Out-Null
+    New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($Target)) | Out-Null
+    Set-Content -LiteralPath $Target -Value "fixture"
+    New-Item -ItemType SymbolicLink -Path $Path -Target $Target -Force | Out-Null
+    Remove-Item -LiteralPath $Target -Force
+}
+
+function New-BrokenDirectorySymlinkFixture {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Target
+    )
+
+    New-Item -ItemType Directory -Force -Path ([IO.Path]::GetDirectoryName($Path)) | Out-Null
+    New-Item -ItemType Directory -Force -Path $Target | Out-Null
+    New-Item -ItemType SymbolicLink -Path $Path -Target $Target -Force | Out-Null
+    Remove-Item -LiteralPath $Target -Recurse -Force
+}
+
+New-BrokenFileSymlinkFixture -Path (Join-Path $HOME ".fdignore") -Target (Join-Path $env:RUNNER_TEMP "legacy-fdignore")
+New-BrokenDirectorySymlinkFixture -Path (Join-Path $HOME ".config\starship") -Target (Join-Path $env:RUNNER_TEMP "legacy-starship")
+New-BrokenFileSymlinkFixture -Path (Join-Path $HOME ".dotfiles-ci-unrelated-broken-link") -Target (Join-Path $env:RUNNER_TEMP "unrelated-link")

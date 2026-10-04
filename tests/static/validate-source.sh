@@ -11,6 +11,7 @@ validate_shell() {
         update.sh
         tests/linux/assert-state.sh
         tests/linux/run-ci.sh
+        scripts/linux/cleanup-broken-managed-links.sh
         tests/static/validate-source.sh
     )
     bash -n "${shell_files[@]}"

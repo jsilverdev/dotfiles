@@ -24,7 +24,23 @@ as_ci() {
     sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci "$@"
 }
 
+as_ci bash -lc '
+    mkdir -p "$HOME/.config"
+
+    ln -s /nonexistent/legacy-fdignore "$HOME/.fdignore"
+    ln -s /nonexistent/legacy-starship "$HOME/.config/starship"
+    ln -s /nonexistent/unrelated-link "$HOME/.dotfiles-ci-unrelated-broken-link"
+'
+
 as_ci GITHUB_WORKSPACE="$repo" DOTFILES_REPO="file://$remote" DOTFILES_NONINTERACTIVE=1 bash -lc 'cd /tmp; bash "$GITHUB_WORKSPACE/bootstrap.sh"'
+
+as_ci bash -lc '
+    [[ -f "$HOME/.fdignore" && ! -L "$HOME/.fdignore" ]]
+    [[ -d "$HOME/.config/starship" && ! -L "$HOME/.config/starship" ]]
+    [[ -f "$HOME/.config/starship/config.toml" ]]
+    [[ -L "$HOME/.dotfiles-ci-unrelated-broken-link" ]]
+    [[ ! -e "$HOME/.dotfiles-ci-unrelated-broken-link" ]]
+'
 
 as_ci PATH="/home/dotfilesci/.local/bin:$PATH" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$repo" GITHUB_WORKSPACE="$repo" D="$distro" C="$commit" bash -lc 'bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" "$D" "$C"'
 
