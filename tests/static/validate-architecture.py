@@ -33,7 +33,7 @@ if (ROOT / ".chezmoiroot").read_text(encoding="utf-8").strip() != "home":
     fail(".chezmoiroot must contain 'home'")
 
 required_paths = (
-    ".chezmoi.toml.tmpl",
+    "home/.chezmoi.toml.tmpl",
     "home",
     "scripts/linux/packages-debian.txt",
     "scripts/linux/cleanup-broken-managed-links.sh",

@@ -44,7 +44,7 @@ For dotfiles plus installer-managed package/application/module updates, use `upd
 
 ## State details
 
-- `.chezmoi.toml.tmpl` persists the source directory selected during `chezmoi init`; fresh bootstraps explicitly select `~/.dotfiles`.
+- `home/.chezmoi.toml.tmpl` persists the source directory selected during `chezmoi init`; fresh bootstraps explicitly select `~/.dotfiles`.
 - `home/.chezmoiroot` is represented by the repository-level `.chezmoiroot`, pointing to `home`.
 - Windows-only `.wslconfig` and Linux-only Zsh/Sheldon state are filtered by `home/.chezmoiignore`.
 - `~/.gitconfig.local`, `~/.codex/config.toml`, and `~/.codex/rules/default.rules` use chezmoi create-only semantics and are not overwritten after creation.
