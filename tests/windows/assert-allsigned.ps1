@@ -147,10 +147,58 @@ if (Test-Path -LiteralPath $ThumbprintFile) {
 }
 Set-Content -LiteralPath $ThumbprintFile -Value $thumbprint -NoNewline
 
+function Invoke-NativeProcess {
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [string[]]$Arguments = @()
+    )
+
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $FilePath
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    foreach ($argument in $Arguments) {
+        [void]$startInfo.ArgumentList.Add($argument)
+    }
+
+    $process = [System.Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) {
+            Fail "failed to start native process: $FilePath"
+        }
+
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+
+        return [pscustomobject]@{
+            ExitCode = $process.ExitCode
+            StdOut = $stdout
+            StdErr = $stderr
+        }
+    }
+    finally {
+        $process.Dispose()
+    }
+}
+
 function Invoke-Chezmoi([string[]]$Arguments) {
-    $output = @(& chezmoi.exe @Arguments 2>&1)
-    if ($LASTEXITCODE -ne 0) { Fail "chezmoi $($Arguments -join ' ') failed: $($output -join [Environment]::NewLine)" }
-    return $output
+    $chezmoi = (Get-Command chezmoi.exe -ErrorAction Stop).Source
+    $result = Invoke-NativeProcess -FilePath $chezmoi -Arguments $Arguments
+    if ($result.ExitCode -ne 0) {
+        Fail "chezmoi $($Arguments -join ' ') failed with exit code $($result.ExitCode): $($result.StdErr.Trim())"
+    }
+
+    if ([string]::IsNullOrWhiteSpace($result.StdOut)) {
+        return @()
+    }
+
+    return @($result.StdOut -split "\r?\n" | Where-Object { $_ -ne "" })
 }
 
 function Assert-CleanChezMoi {
@@ -219,7 +267,11 @@ if ($LASTEXITCODE -ne 0 -or $repoStatus.Count -ne 0) { Fail "Actions checkout Gi
 $signatureMatches = @(git -C $RepoRoot grep -n "^# SIG # Begin signature block" -- "*.ps1")
 if ($LASTEXITCODE -eq 0 -or $signatureMatches.Count -ne 0) { Fail "repository PowerShell source contains an Authenticode signature block" }
 
-$profileOutput = @(& pwsh.exe -Command "Write-Output 'profile-ok'" 2>&1)
-if ($LASTEXITCODE -ne 0 -or -not ($profileOutput -contains "profile-ok")) { Fail "PowerShell profile startup failed: $($profileOutput -join [Environment]::NewLine)" }
+$pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+$profileResult = Invoke-NativeProcess -FilePath $pwsh -Arguments @("-Command", "Write-Output 'profile-ok'")
+$profileOutput = @($profileResult.StdOut -split "\r?\n" | Where-Object { $_ -ne "" })
+if ($profileResult.ExitCode -ne 0 -or -not ($profileOutput -contains "profile-ok")) {
+    Fail "PowerShell profile startup failed with exit code $($profileResult.ExitCode): $($profileResult.StdErr.Trim())"
+}
 
 Write-Host "AllSigned assertions passed with certificate $thumbprint."

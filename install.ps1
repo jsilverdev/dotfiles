@@ -210,7 +210,27 @@ function Install-MustHaveApps {
 
     $allSigned = $env:DOTFILES_SIGNING_REQUIRED -eq "1"
     foreach ($module in $ManagedModules) {
-        $installedModule = Get-Module -ListAvailable -Name $module | Select-Object -First 1
+        $availableModules = @(Get-Module -ListAvailable -Name $module)
+        if ($allSigned) {
+            $userModuleRoots = @(
+                (Join-Path $HOME "Documents\PowerShell\Modules"),
+                (Join-Path $HOME ".local\share\powershell\Modules")
+            )
+            $installedModule = @($availableModules | Where-Object {
+                $moduleBase = [IO.Path]::GetFullPath($_.ModuleBase).TrimEnd([IO.Path]::DirectorySeparatorChar)
+                @($userModuleRoots | Where-Object {
+                    $root = [IO.Path]::GetFullPath($_).TrimEnd([IO.Path]::DirectorySeparatorChar)
+                    $moduleBase.Equals($root, [StringComparison]::OrdinalIgnoreCase) -or
+                    $moduleBase.StartsWith($root + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
+                }).Count -gt 0
+            } | Select-Object -First 1)
+            if ($installedModule.Count -eq 0) { $installedModule = $null }
+            else { $installedModule = $installedModule[0] }
+        }
+        else {
+            $installedModule = $availableModules | Select-Object -First 1
+        }
+
         $installedResource = $null
         if (-not $allSigned -and (Get-Command Get-InstalledPSResource -ErrorAction SilentlyContinue)) {
             $installedResource = Get-InstalledPSResource -Name $module -ErrorAction SilentlyContinue | Select-Object -First 1
