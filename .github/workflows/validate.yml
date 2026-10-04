@@ -41,8 +41,14 @@ jobs:
       - name: Validate workflow
         run: actionlint .github/workflows/validate.yml
 
-      - name: Validate source state
-        run: bash tests/static/validate-source.sh
+      - name: Validate shell source
+        run: bash tests/static/validate-source.sh shell
+
+      - name: Validate chezmoi source
+        run: bash tests/static/validate-source.sh chezmoi
+
+      - name: Validate source architecture
+        run: bash tests/static/validate-source.sh architecture
 
       - name: Validate manifests
         run: python3 tests/static/validate-manifests.py
