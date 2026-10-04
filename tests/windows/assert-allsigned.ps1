@@ -6,40 +6,142 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$certificateSubject = "CN=jsilverdev Dotfiles Code Signing"
+$codeSigningOid = "1.3.6.1.5.5.7.3.3"
+$enhancedKeyUsageOid = "2.5.29.37"
 
 function Fail([string]$Message) { throw "ASSERTION FAILED: $Message" }
 
-$effectivePolicy = Get-ExecutionPolicy
-if ($effectivePolicy -ne "AllSigned") { Fail "effective execution policy is $effectivePolicy, expected AllSigned" }
-Write-Host "Execution policy: $effectivePolicy"
-Get-ExecutionPolicy -List | Format-Table -AutoSize | Out-Host
+function Test-CodeSigningCertificate {
+    param([System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate)
 
-$certificateSubject = "CN=jsilverdev Dotfiles Code Signing"
-$codeSigningOid = "1.3.6.1.5.5.7.3.3"
-$certificate = @(Get-ChildItem Cert:\CurrentUser\My | Where-Object {
-    $_.Subject -eq $certificateSubject -and
-    $_.HasPrivateKey -and
-    $_.NotAfter -gt (Get-Date) -and
-    @($_.EnhancedKeyUsageList | Where-Object ObjectId -eq $codeSigningOid).Count -gt 0
+    if ($null -eq $Certificate -or -not $Certificate.HasPrivateKey -or $Certificate.NotAfter -le (Get-Date)) {
+        return $false
+    }
+
+    $ekuExtension = $Certificate.Extensions |
+        Where-Object { $_.Oid.Value -eq $enhancedKeyUsageOid } |
+        Select-Object -First 1
+    if ($null -eq $ekuExtension) { return $false }
+
+    try {
+        $eku = New-Object System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension
+        $eku.CopyFrom($ekuExtension)
+    }
+    catch {
+        return $false
+    }
+
+    return @($eku.EnhancedKeyUsages | Where-Object { $_.Value -eq $codeSigningOid }).Count -gt 0
+}
+
+function Get-StoreCertificates {
+    param(
+        [Parameter(Mandatory)][string]$StoreName,
+        [Parameter(Mandatory)][System.Security.Cryptography.X509Certificates.StoreLocation]$StoreLocation
+    )
+
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($StoreName, $StoreLocation)
+    try {
+        $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+        return @($store.Certificates)
+    }
+    finally {
+        $store.Close()
+    }
+}
+
+function Test-CertificateInStore {
+    param(
+        [Parameter(Mandatory)][string]$StoreName,
+        [Parameter(Mandatory)][System.Security.Cryptography.X509Certificates.StoreLocation]$StoreLocation,
+        [Parameter(Mandatory)][string]$Thumbprint
+    )
+
+    return @(Get-StoreCertificates -StoreName $StoreName -StoreLocation $StoreLocation |
+        Where-Object Thumbprint -eq $Thumbprint).Count -gt 0
+}
+
+function Assert-AuthenticodeFiles {
+    param(
+        [Parameter(Mandatory)][string[]]$FilePath,
+        [Parameter(Mandatory)][string]$ExpectedThumbprint
+    )
+
+    if ($FilePath.Count -eq 0) { return }
+
+    $windowsPowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    if (-not (Test-Path -LiteralPath $windowsPowerShell -PathType Leaf)) {
+        Fail "Windows PowerShell is unavailable for Authenticode verification."
+    }
+
+    $manifest = [IO.Path]::ChangeExtension([IO.Path]::GetTempFileName(), ".json")
+    $originalPSModulePath = $env:PSModulePath
+    try {
+        @($FilePath) | ConvertTo-Json -Compress | Set-Content -LiteralPath $manifest -Encoding UTF8
+        $env:DOTFILES_SIGNATURE_MANIFEST = $manifest
+        $env:DOTFILES_EXPECTED_THUMBPRINT = $ExpectedThumbprint
+        $env:PSModulePath = @(
+            (Join-Path $HOME "Documents\WindowsPowerShell\Modules")
+            (Join-Path $env:ProgramFiles "WindowsPowerShell\Modules")
+            (Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\Modules")
+        ) -join [IO.Path]::PathSeparator
+
+        $command = @(
+            "`$ErrorActionPreference = 'Stop'"
+            "`$paths = @(Get-Content -LiteralPath `$env:DOTFILES_SIGNATURE_MANIFEST -Raw | ConvertFrom-Json)"
+            "foreach (`$path in `$paths) {"
+            "    `$signature = Get-AuthenticodeSignature -LiteralPath `$path"
+            "    if (`$signature.Status -ne 'Valid') { throw \"invalid Authenticode signature: `$path (`$(`$signature.Status))\" }"
+            "    if (`$null -eq `$signature.SignerCertificate -or `$signature.SignerCertificate.Thumbprint -ne `$env:DOTFILES_EXPECTED_THUMBPRINT) { throw \"unexpected Authenticode signer: `$path\" }"
+            "    Write-Output \"Valid signature: `$path\""
+            "}"
+        ) -join [Environment]::NewLine
+        $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
+
+        & $windowsPowerShell -NoProfile -NonInteractive -EncodedCommand $encodedCommand
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Windows PowerShell Authenticode verification failed with exit code $LASTEXITCODE."
+        }
+    }
+    finally {
+        $env:PSModulePath = $originalPSModulePath
+        Remove-Item Env:DOTFILES_SIGNATURE_MANIFEST -ErrorAction SilentlyContinue
+        Remove-Item Env:DOTFILES_EXPECTED_THUMBPRINT -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $manifest -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# The workflow separately proves that unsigned scripts are rejected. The bridge
+# sets this variable only on the signed execution path, so the assertion avoids
+# autoloading Microsoft.PowerShell.Security inside pwsh under AllSigned.
+if ($env:DOTFILES_SIGNING_REQUIRED -ne "1") {
+    Fail "assert-allsigned.ps1 was not executed through the AllSigned signing path"
+}
+Write-Host "AllSigned bridge path confirmed."
+
+$currentUser = [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+$localMachine = [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
+$certificate = @(Get-StoreCertificates -StoreName "My" -StoreLocation $currentUser | Where-Object {
+    $_.Subject -eq $certificateSubject -and (Test-CodeSigningCertificate $_)
 } | Sort-Object NotAfter -Descending | Select-Object -First 1)
 if ($certificate.Count -ne 1) { Fail "usable dotfiles Code Signing certificate was not found in CurrentUser\\My" }
 
-foreach ($storeName in @("My", "TrustedPublisher")) {
-    $trusted = @(Get-ChildItem "Cert:\CurrentUser\$storeName" | Where-Object Thumbprint -eq $certificate[0].Thumbprint)
-    if ($trusted.Count -ne 1) { Fail "certificate $($certificate[0].Thumbprint) is missing from CurrentUser\\$storeName" }
+$thumbprint = $certificate[0].Thumbprint
+if (-not (Test-CertificateInStore -StoreName "TrustedPublisher" -StoreLocation $currentUser -Thumbprint $thumbprint)) {
+    Fail "certificate $thumbprint is missing from CurrentUser\\TrustedPublisher"
 }
-$trustedRoot = @(
-    Get-ChildItem Cert:\CurrentUser\Root | Where-Object Thumbprint -eq $certificate[0].Thumbprint
-    Get-ChildItem Cert:\LocalMachine\Root | Where-Object Thumbprint -eq $certificate[0].Thumbprint
-)
-if ($trustedRoot.Count -eq 0) { Fail "certificate $($certificate[0].Thumbprint) is missing from both CurrentUser\\Root and LocalMachine\\Root" }
-Write-Host "Certificate: $($certificate[0].Subject) thumbprint=$($certificate[0].Thumbprint) expires=$($certificate[0].NotAfter)"
+$trustedRoot =
+    (Test-CertificateInStore -StoreName "Root" -StoreLocation $currentUser -Thumbprint $thumbprint) -or
+    (Test-CertificateInStore -StoreName "Root" -StoreLocation $localMachine -Thumbprint $thumbprint)
+if (-not $trustedRoot) { Fail "certificate $thumbprint is missing from both CurrentUser\\Root and LocalMachine\\Root" }
+Write-Host "Certificate: $($certificate[0].Subject) thumbprint=$thumbprint expires=$($certificate[0].NotAfter)"
 
 if (Test-Path -LiteralPath $ThumbprintFile) {
     $previous = (Get-Content -LiteralPath $ThumbprintFile -Raw).Trim()
-    if ($previous -ne $certificate[0].Thumbprint) { Fail "signing certificate changed from $previous to $($certificate[0].Thumbprint)" }
+    if ($previous -ne $thumbprint) { Fail "signing certificate changed from $previous to $thumbprint" }
 }
-Set-Content -LiteralPath $ThumbprintFile -Value $certificate[0].Thumbprint -NoNewline
+Set-Content -LiteralPath $ThumbprintFile -Value $thumbprint -NoNewline
 
 function Invoke-Chezmoi([string[]]$Arguments) {
     $output = @(& chezmoi.exe @Arguments 2>&1)
@@ -48,9 +150,6 @@ function Invoke-Chezmoi([string[]]$Arguments) {
 }
 
 function Assert-CleanChezMoi {
-    # Always-run scripts appear as "R" and create-only files may legitimately
-    # differ in the first status column. Only the second column means apply
-    # still has work to do.
     $status = @(Invoke-Chezmoi @("status", "--exclude=scripts"))
     $pending = @($status | Where-Object {
         $line = [string]$_
@@ -70,6 +169,7 @@ Invoke-Chezmoi @("apply") | Out-Host
 Invoke-Chezmoi @("apply") | Out-Host
 Assert-CleanChezMoi
 
+$signatureFiles = [System.Collections.Generic.List[string]]::new()
 $runtimeFiles = @(
     (Join-Path $HOME ".config\pwsh\env.ps1"),
     (Join-Path $HOME ".config\pwsh\lib\helpers.ps1"),
@@ -78,10 +178,7 @@ $runtimeFiles = @(
 )
 foreach ($path in $runtimeFiles) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { Fail "runtime PowerShell file is missing: $path" }
-    $signature = Get-AuthenticodeSignature -FilePath $path
-    Write-Host "${path}: $($signature.Status) signer=$($signature.SignerCertificate.Thumbprint)"
-    if ($signature.Status -ne "Valid") { Fail "runtime PowerShell signature is not Valid: $path ($($signature.Status))" }
-    if ($signature.SignerCertificate.Thumbprint -ne $certificate[0].Thumbprint) { Fail "runtime PowerShell file has an unexpected signer: $path" }
+    $signatureFiles.Add($path)
 }
 
 foreach ($moduleName in @(Get-Content -LiteralPath (Join-Path $RepoRoot "scripts\windows\managed-modules.txt") | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })) {
@@ -91,17 +188,21 @@ foreach ($moduleName in @(Get-Content -LiteralPath (Join-Path $RepoRoot "scripts
     else {
         Import-Module $moduleName -Force -ErrorAction Stop
     }
+
     $module = @(Get-Module -ListAvailable -Name $moduleName | Where-Object {
         $_.ModuleBase -like "$(Join-Path $HOME 'Documents\PowerShell\Modules')*" -or
         $_.ModuleBase -like "$(Join-Path $HOME '.local\share\powershell\Modules')*"
     } | Select-Object -First 1)
     if ($module.Count -ne 1) { Fail "managed module is not in a current-user module path: $moduleName" }
-    $moduleFiles = @(Get-ChildItem -LiteralPath $module[0].ModuleBase -File -Recurse | Where-Object Extension -in @(".ps1", ".psm1", ".psd1", ".ps1xml", ".cdxml", ".xaml"))
+
+    $moduleFiles = @(Get-ChildItem -LiteralPath $module[0].ModuleBase -File -Recurse |
+        Where-Object Extension -in @(".ps1", ".psm1", ".psd1", ".ps1xml", ".cdxml", ".xaml"))
     foreach ($file in $moduleFiles) {
-        $signature = Get-AuthenticodeSignature -FilePath $file.FullName
-        if ($signature.Status -ne "Valid") { Fail "managed module file is not Validly signed: $($file.FullName) ($($signature.Status))" }
+        $signatureFiles.Add($file.FullName)
     }
 }
+
+Assert-AuthenticodeFiles -FilePath @($signatureFiles) -ExpectedThumbprint $thumbprint
 
 if ($UpdateMarker) {
     if (-not ((Get-Content (Join-Path $HOME ".fdignore") -Raw) -match [regex]::Escape($UpdateMarker))) { Fail "update marker did not reach .fdignore" }
@@ -117,4 +218,4 @@ if ($LASTEXITCODE -eq 0 -or $signatureMatches.Count -ne 0) { Fail "repository Po
 $profileOutput = @(& pwsh.exe -Command "Write-Output 'profile-ok'" 2>&1)
 if ($LASTEXITCODE -ne 0 -or -not ($profileOutput -contains "profile-ok")) { Fail "PowerShell profile startup failed: $($profileOutput -join [Environment]::NewLine)" }
 
-Write-Host "AllSigned assertions passed with certificate $($certificate[0].Thumbprint)."
+Write-Host "AllSigned assertions passed with certificate $thumbprint."
