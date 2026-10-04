@@ -211,6 +211,17 @@ function Assert-CleanChezMoi {
 
 $sourcePath = ((Invoke-Chezmoi @("source-path")) -join "").Trim()
 Write-Host "chezmoi source-path: $sourcePath"
+$expectedWorkingTree = [IO.Path]::GetFullPath((Join-Path $HOME ".dotfiles")).TrimEnd([IO.Path]::DirectorySeparatorChar)
+$workingTree = ((Invoke-Chezmoi @("execute-template", "{{ .chezmoi.workingTree }}")) -join "").Trim()
+$actualWorkingTree = [IO.Path]::GetFullPath($workingTree).TrimEnd([IO.Path]::DirectorySeparatorChar)
+if (-not $actualWorkingTree.Equals($expectedWorkingTree, [StringComparison]::OrdinalIgnoreCase)) {
+    Fail "chezmoi working tree is $actualWorkingTree, expected $expectedWorkingTree"
+}
+$expectedSourcePath = [IO.Path]::GetFullPath((Join-Path $expectedWorkingTree "home")).TrimEnd([IO.Path]::DirectorySeparatorChar)
+$actualSourcePath = [IO.Path]::GetFullPath($sourcePath).TrimEnd([IO.Path]::DirectorySeparatorChar)
+if (-not $actualSourcePath.Equals($expectedSourcePath, [StringComparison]::OrdinalIgnoreCase)) {
+    Fail "chezmoi source path is $actualSourcePath, expected $expectedSourcePath"
+}
 $managedAppsPath = Join-Path $RepoRoot "scripts\windows\managed-apps.csv"
 $coreApps = @(Import-Csv -LiteralPath $managedAppsPath | Where-Object Category -eq "core")
 foreach ($app in $coreApps) {
