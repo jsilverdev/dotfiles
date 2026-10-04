@@ -92,7 +92,7 @@ function Save-ManagedModuleForAllSigned {
     $escapedName = $Name.Replace("'", "''")
     $escapedRoot = $moduleRoot.Replace("'", "''")
     $command = @(
-        "$ErrorActionPreference = 'Stop'"
+        "`$ErrorActionPreference = 'Stop'"
         "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12"
         "Save-Module -Name '$escapedName' -Path '$escapedRoot' -Repository PSGallery -Force -AcceptLicense"
     ) -join [Environment]::NewLine
@@ -208,7 +208,7 @@ function Install-MustHaveApps {
         if ($LASTEXITCODE -ne 0) { throw "mise could not install starship." }
     }
 
-    $allSigned = (Get-ExecutionPolicy) -eq "AllSigned"
+    $allSigned = $env:DOTFILES_SIGNING_REQUIRED -eq "1"
     foreach ($module in $ManagedModules) {
         $installedModule = Get-Module -ListAvailable -Name $module | Select-Object -First 1
         $installedResource = $null
