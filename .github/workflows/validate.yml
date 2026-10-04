@@ -47,17 +47,8 @@ jobs:
       - name: Validate chezmoi source
         run: bash tests/static/validate-source.sh chezmoi
 
-      - name: Validate required source paths
-        run: bash tests/static/validate-source.sh paths
-
-      - name: Validate legacy constraints
-        run: bash tests/static/validate-source.sh legacy
-
-      - name: Validate execution-policy constraints
-        run: bash tests/static/validate-source.sh policy
-
-      - name: Validate unsigned repository source
-        run: bash tests/static/validate-source.sh signatures
+      - name: Validate source architecture
+        run: python3 tests/static/validate-architecture.py
 
       - name: Validate manifests
         run: python3 tests/static/validate-manifests.py
