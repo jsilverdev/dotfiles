@@ -50,10 +50,10 @@ configure_local_chezmoi_source() {
 if [[ -f /etc/debian_version ]] && command -v apt-get >/dev/null 2>&1; then
     DISTRO="debian"
     sudo apt-get update
-    sudo apt-get install --yes git curl wget zsh
+    sudo apt-get install --yes git curl zsh
 elif [[ -f /etc/arch-release ]] && command -v pacman >/dev/null 2>&1; then
     DISTRO="arch"
-    sudo pacman -Syu --noconfirm --needed git curl wget zsh chezmoi
+    sudo pacman -Syu --noconfirm --needed git curl zsh chezmoi
 else
     printf 'Unsupported Linux distribution. Debian and Arch Linux are supported.\n' >&2
     exit 1

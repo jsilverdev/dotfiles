@@ -1,898 +1,114 @@
 name: Validate dotfiles
-
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
-  group: validate-v2-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 jobs:
   static:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Check out the exact revision
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Install static-validation tools
+      - uses: actions/checkout@v7
+        with: {persist-credentials: false}
+      - name: Install validation tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends python3 ruby shellcheck
+          sudo apt-get install --yes --no-install-recommends shellcheck
           mkdir -p "$RUNNER_TEMP/bin"
           curl -fsLS https://get.chezmoi.io | sh -s -- -b "$RUNNER_TEMP/bin"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-
-      - name: Validate shell, source state, templates, and architecture
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash -n bootstrap.sh install.sh update.sh tests/linux/assert-state.sh
-          shellcheck -x -S error bootstrap.sh install.sh update.sh tests/linux/assert-state.sh
-          chezmoi --source "$GITHUB_WORKSPACE" managed >/dev/null
-          while IFS= read -r -d '' template; do
-            chezmoi --source "$GITHUB_WORKSPACE" execute-template < "$template" >/dev/null
-          done < <(find "$GITHUB_WORKSPACE" -type f -name '*.tmpl' -print0)
-
-          test "$(tr -d '\r\n' < .chezmoiroot)" = home
-          test -d home
-          test -f scripts/windows/invoke-ps-script.cmd
-          test -f scripts/windows/invoke-ps-script-bridge.ps1
-          test -f scripts/windows/signing.ps1
-          test -f scripts/windows/deploy-pwsh.ps1
-          test -f scripts/windows/managed-modules.txt
-          test -f home/.chezmoiscripts/run_after_90-deploy-pwsh.cmd.tmpl
-
-          if git ls-files | grep -E '(^|/)symlink_[^/]*$'; then
-            echo 'chezmoi symlink source state is not allowed' >&2
-            exit 1
-          fi
-          if git grep -n -i 'dotbot' -- ':!.github/workflows/validate.yml'; then
-            echo 'obsolete Dotbot dependency/reference found' >&2
-            exit 1
-          fi
-          if git grep -n -E 'https://github\.com/jsilverdev/dotfiles\.git.*master|raw\.githubusercontent\.com/jsilverdev/dotfiles/master'; then
-            echo 'obsolete master bootstrap URL found' >&2
-            exit 1
-          fi
-          if git grep -n -E 'Set-ExecutionPolicy|-ExecutionPolicy[[:space:]]+Bypass' -- ':!\.github/workflows/validate.yml'; then
-            echo 'production execution-policy weakening found' >&2
-            exit 1
-          fi
-          if git grep -n -E 'PowerShellCore\\ShellIds|Software\\Microsoft\\PowerShell\\1\\ShellIds' -- '*.ps1' '*.psm1' '*.cmd'; then
-            echo 'implementation-specific PowerShell execution-policy registry probing found' >&2
-            exit 1
-          fi
-          if git grep -n '^# SIG # Begin signature block' -- '*.ps1' '*.psm1'; then
-            echo 'signed PowerShell source was committed' >&2
-            exit 1
-          fi
-
-      - name: Validate encoded PowerShell bridge source
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import base64
-          import pathlib
-          import re
-
-          cmd = pathlib.Path('scripts/windows/invoke-ps-script.cmd').read_text(encoding='utf-8')
-          source = pathlib.Path('scripts/windows/invoke-ps-script-bridge.ps1').read_text(encoding='utf-8')
-          match = re.search(r'(?m)^"%SystemRoot%\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe" -NoProfile -EncodedCommand ([A-Za-z0-9+/=]+)\s*$', cmd)
-          if not match:
-              raise SystemExit('encoded bridge payload is missing')
-          decoded = base64.b64decode(match.group(1)).decode('utf-16le')
-          if decoded != source:
-              raise SystemExit('encoded bridge payload does not match invoke-ps-script-bridge.ps1')
-          if len(match.group(1)) >= 8000:
-              raise SystemExit('encoded bridge payload is too close to cmd.exe command-line limits')
-          print(f'bridge-source-ok: encoded length={len(match.group(1))}')
-          PY
-
-      - name: Validate workflow YAML
-        shell: bash
-        run: |
-          set -euo pipefail
-          ruby -e 'require "yaml"; YAML.load_file(ARGV.fetch(0))' .github/workflows/validate.yml
-          echo 'workflow-yaml-ok'
-
-      - name: Validate PowerShell syntax
-        shell: bash
-        run: |
-          set -euo pipefail
-          pwsh -NoProfile -Command - <<'PWSH'
-          Write-Host "PowerShell $($PSVersionTable.PSVersion)"
-          $errors = @()
-          Get-ChildItem -Recurse -File -Include *.ps1,*.psm1 | ForEach-Object {
-            $tokens = $null
-            $parseErrors = $null
-            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
-            if ($parseErrors.Count) {
-              $joined = $parseErrors -join '; '
-              $errors += "$($_.FullName): $joined"
-            }
-          }
-          if ($errors.Count) {
-            $errors | Write-Error
-            exit 1
-          }
-          PWSH
-          echo 'powershell-syntax-ok'
-
-  linux-debian:
+      - run: bash tests/static/validate-source.sh
+      - run: python3 tests/static/check-powershell-bridge.py
+      - shell: pwsh
+        run: ./tests/static/validate-powershell.ps1
+  linux:
+    name: linux-${{ matrix.distro }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {distro: debian, image: "debian:bookworm-slim"}
+          - {distro: arch, image: "archlinux:base"}
     container:
-      image: debian:bookworm-slim
+      image: ${{ matrix.image }}
     steps:
-      - name: Prepare Debian container for checkout
+      - name: Prepare container
+        shell: sh
         run: |
-          apt-get update
-          apt-get install --yes --no-install-recommends ca-certificates curl git sudo bash
-
-      - name: Check out the exact revision
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Run Debian bootstrap as an unprivileged user
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_SHA"
-
-          remote_parent="$(mktemp -d)"
-          remote_dir="$remote_parent/dotfiles.git"
-          git init --bare "$remote_dir"
-          git -C "$GITHUB_WORKSPACE" push "$remote_dir" "$GITHUB_SHA:refs/heads/main"
-          git --git-dir="$remote_dir" symbolic-ref HEAD refs/heads/main
-          chmod -R a+rX "$GITHUB_WORKSPACE"
-
-          useradd --create-home --shell /bin/bash dotfilesci
-          printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
-          chmod 0440 /etc/sudoers.d/dotfilesci
-          chown -R dotfilesci:dotfilesci "$remote_parent"
-          echo "DOTFILES_REPO=file://$remote_dir" >> "$GITHUB_ENV"
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
-            DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
-            bash -lc 'cd /tmp; bash "$GITHUB_WORKSPACE/bootstrap.sh"'
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            PATH="/home/dotfilesci/.local/bin:$PATH" \
-            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" EXPECTED_COMMIT="$GITHUB_SHA" \
-            bash -lc 'bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" debian "$EXPECTED_COMMIT"'
-
-      - name: Exercise Debian update wrapper against the local remote
-        shell: bash
-        run: |
-          set -euo pipefail
-          marker="ci-update-marker-${GITHUB_RUN_ID}"
-
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            DOTFILES_REPO="$DOTFILES_REPO" UPDATE_MARKER="$marker" \
-            bash -lc '
-              set -euo pipefail
-              update_parent="$(mktemp -d)"
-              update_clone="$update_parent/dotfiles-update"
-              git clone "$DOTFILES_REPO" "$update_clone"
-              git -C "$update_clone" config user.name ci
-              git -C "$update_clone" config user.email ci@example.invalid
-              printf "\n%s\n" "$UPDATE_MARKER" >> "$update_clone/home/dot_fdignore"
-              git -C "$update_clone" add home/dot_fdignore
-              git -c commit.gpgsign=false -C "$update_clone" commit -m "CI update fixture"
-              git -C "$update_clone" push origin HEAD:refs/heads/main
-            '
-
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            PATH="/home/dotfilesci/.local/bin:$PATH" \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
-            bash -lc 'bash "$GITHUB_WORKSPACE/update.sh" --core-only'
-
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            PATH="/home/dotfilesci/.local/bin:$PATH" \
-            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" UPDATE_MARKER="$marker" \
-            bash -lc 'grep -Fqx "$UPDATE_MARKER" "$HOME/.fdignore"; bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" debian'
-
-  linux-arch:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    container:
-      image: archlinux:base
-    steps:
-      - name: Prepare Arch container for checkout
-        run: |
-          pacman -Sy --noconfirm ca-certificates curl git sudo bash
-
-      - name: Check out the exact revision
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Run Arch bootstrap as an unprivileged user
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_SHA"
-
-          remote_parent="$(mktemp -d)"
-          remote_dir="$remote_parent/dotfiles.git"
-          git init --bare "$remote_dir"
-          git -C "$GITHUB_WORKSPACE" push "$remote_dir" "$GITHUB_SHA:refs/heads/main"
-          git --git-dir="$remote_dir" symbolic-ref HEAD refs/heads/main
-          chmod -R a+rX "$GITHUB_WORKSPACE"
-
-          useradd --create-home --shell /bin/bash dotfilesci
-          printf 'dotfilesci ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/dotfilesci
-          chmod 0440 /etc/sudoers.d/dotfilesci
-          chown -R dotfilesci:dotfilesci "$remote_parent"
-          echo "DOTFILES_REPO=file://$remote_dir" >> "$GITHUB_ENV"
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" \
-            DOTFILES_REPO="file://$remote_dir" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
-            bash -lc 'cd /tmp; bash "$GITHUB_WORKSPACE/bootstrap.sh"'
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            PATH="/home/dotfilesci/.local/bin:$PATH" \
-            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" EXPECTED_COMMIT="$GITHUB_SHA" \
-            bash -lc 'bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" arch "$EXPECTED_COMMIT"'
-
-      - name: Exercise Arch update wrapper against the local remote
-        shell: bash
-        run: |
-          set -euo pipefail
-          marker="ci-update-marker-${GITHUB_RUN_ID}"
-
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            DOTFILES_REPO="$DOTFILES_REPO" UPDATE_MARKER="$marker" \
-            bash -lc '
-              set -euo pipefail
-              update_parent="$(mktemp -d)"
-              update_clone="$update_parent/dotfiles-update"
-              git clone "$DOTFILES_REPO" "$update_clone"
-              git -C "$update_clone" config user.name ci
-              git -C "$update_clone" config user.email ci@example.invalid
-              printf "\n%s\n" "$UPDATE_MARKER" >> "$update_clone/home/dot_fdignore"
-              git -C "$update_clone" add home/dot_fdignore
-              git -c commit.gpgsign=false -C "$update_clone" commit -m "CI update fixture"
-              git -C "$update_clone" push origin HEAD:refs/heads/main
-            '
-
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            PATH="/home/dotfilesci/.local/bin:$PATH" \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" DOTFILES_NONINTERACTIVE=1 DOTFILES_CORE_ONLY=1 \
-            bash -lc 'bash "$GITHUB_WORKSPACE/update.sh" --core-only'
-
-          sudo -u dotfilesci -H env HOME=/home/dotfilesci USER=dotfilesci \
-            PATH="/home/dotfilesci/.local/bin:$PATH" \
-            GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=safe.directory GIT_CONFIG_VALUE_0="$GITHUB_WORKSPACE" \
-            GITHUB_WORKSPACE="$GITHUB_WORKSPACE" UPDATE_MARKER="$marker" \
-            bash -lc 'grep -Fqx "$UPDATE_MARKER" "$HOME/.fdignore"; bash "$GITHUB_WORKSPACE/tests/linux/assert-state.sh" arch'
-
+          case "${{ matrix.distro }}" in
+            debian) apt-get update; apt-get install --yes --no-install-recommends ca-certificates curl git sudo bash ;;
+            arch) pacman -Sy --noconfirm ca-certificates curl git sudo bash ;;
+          esac
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - run: bash tests/linux/run-ci.sh "${{ matrix.distro }}" "$GITHUB_SHA"
   windows:
     runs-on: windows-2025
     timeout-minutes: 45
+    env: {DOTFILES_NONINTERACTIVE: "1", DOTFILES_CORE_ONLY: "1"}
     steps:
-      - name: Check out the exact revision
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Provision WinGet if the hosted runner lacks it
-        shell: pwsh
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - shell: pwsh
+        run: ./tests/windows/prepare-ci.ps1
+      - name: Run bootstrap
+        shell: cmd
         run: |
-          Write-Host 'Checking for winget.exe'
-          cmd /c where winget.exe
-          if ($LASTEXITCODE -ne 0) {
-            Install-PackageProvider -Name NuGet -Force | Out-Null
-            Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
-            Import-Module Microsoft.WinGet.Client -Force
-            Repair-WinGetPackageManager -Force -Latest
-          }
-          cmd /c where winget.exe
-          if ($LASTEXITCODE -ne 0) { throw 'winget.exe is unavailable after Microsoft.WinGet.Client repair' }
-          winget.exe --version
-          @(
-            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft.PowerShell'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\mise'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\chezmoi')
-          ) | ForEach-Object { Add-Content -Path $env:GITHUB_PATH -Value $_ }
-
-      - name: Create the exact-commit local bootstrap remote
-        shell: pwsh
-        run: |
-          $remote = Join-Path $env:RUNNER_TEMP "dotfiles-remote-$env:GITHUB_RUN_ID.git"
-          git init --bare $remote
-          $head = (git -C $env:GITHUB_WORKSPACE rev-parse HEAD).Trim()
-          if ($head -ne $env:GITHUB_SHA) { throw "checkout $head does not match GITHUB_SHA $env:GITHUB_SHA" }
-          $remoteUri = "file:///" + $remote.Replace('\', '/')
-          git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
-          if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
-          git --git-dir=$remote show-ref --verify --quiet refs/heads/main
-          if ($LASTEXITCODE -ne 0) { throw 'local bootstrap remote has no main ref' }
-          git --git-dir=$remote symbolic-ref HEAD refs/heads/main
-          Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
-          Write-Host "Local bootstrap remote: $remoteUri"
-
-      - name: Confirm normal execution policy
-        shell: pwsh
-        run: |
-          Get-ExecutionPolicy -List | Format-Table -AutoSize
-          if ((Get-ExecutionPolicy) -eq 'AllSigned') { throw 'normal Windows job unexpectedly has AllSigned effective' }
-
-      - name: Smoke-test PowerShell bridge under normal policy
-        shell: pwsh
-        run: |
-          $smoke = Join-Path $env:RUNNER_TEMP 'bridge-smoke.ps1'
-          @'
-          param([string]$Value)
-          if ($Value -ne 'bridge-ok') { throw "unexpected bridge value: $Value" }
-          '@ | Set-Content -LiteralPath $smoke
-          & "$env:GITHUB_WORKSPACE\scripts\windows\invoke-ps-script.cmd" $smoke -Value bridge-ok
-          if ($LASTEXITCODE -ne 0) { throw "PowerShell bridge smoke test failed with exit code $LASTEXITCODE" }
-
-      - name: Ensure Windows bootstrap core tools
-        shell: pwsh
-        run: |
-          $packages = @(
-            @{ Id = 'Git.Git'; Command = 'git.exe' },
-            @{ Id = 'Microsoft.PowerShell'; Command = 'pwsh.exe' },
-            @{ Id = 'jdx.mise'; Command = 'mise.exe' },
-            @{ Id = 'twpayne.chezmoi'; Command = 'chezmoi.exe' }
-          )
-          foreach ($package in $packages) {
-            cmd /c "where $($package.Command) >nul 2>&1"
-            if ($LASTEXITCODE -ne 0) {
-              winget.exe install --id $package.Id --exact --source winget --scope user --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
-              if ($LASTEXITCODE -ne 0) { throw "unable to install $($package.Id) for current user" }
-            }
-          }
-          @(
-            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft.PowerShell'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\mise'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\chezmoi')
-          ) | ForEach-Object {
-            if ($env:Path -notlike "*$_*") { $env:Path += ";$_" }
-            Add-Content -Path $env:GITHUB_PATH -Value $_
-          }
-          foreach ($command in @('git.exe','pwsh.exe','mise.exe','chezmoi.exe')) {
-            cmd /c "where $command"
-            if ($LASTEXITCODE -ne 0) { throw "$command is unavailable after provisioning" }
-          }
-
-      - name: Initialize chezmoi from the exact-commit remote
-        shell: pwsh
-        run: |
-          $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
-          New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
-          Push-Location $runDirectory
-          try {
-            chezmoi.exe init --apply $env:DOTFILES_REPO
-            if ($LASTEXITCODE -ne 0) { throw "chezmoi init --apply failed with exit code $LASTEXITCODE" }
-            $source = (& chezmoi.exe source-path).Trim()
-            if (-not (Test-Path -LiteralPath $source)) { throw "chezmoi source path does not exist: $source" }
-          }
-          finally { Pop-Location }
-
-      - name: Provision Starship for the core PowerShell profile
-        shell: pwsh
-        run: |
-          mise.exe use -g starship@latest
-          if ($LASTEXITCODE -ne 0) { throw "mise could not provision starship" }
-
-      - name: Provision managed PowerShell modules
-        shell: pwsh
-        run: |
-          $modules = Get-Content -LiteralPath "$env:GITHUB_WORKSPACE\scripts\windows\managed-modules.txt" |
-            Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') }
-          foreach ($module in $modules) {
-            if (-not (Get-Module -ListAvailable -Name $module | Select-Object -First 1)) {
-              Install-Module -Name $module -Repository PSGallery -Scope CurrentUser -Force -AllowClobber -AcceptLicense -Confirm:$false
-            }
-            if (-not (Get-Module -ListAvailable -Name $module | Select-Object -First 1)) {
-              throw "managed PowerShell module was not provisioned: $module"
-            }
-          }
-
-      - name: Smoke-test module signing helper under normal policy
-        shell: pwsh
-        run: |
-          $helper = "$env:GITHUB_WORKSPACE\scripts\windows\signing.ps1"
-          $bridge = "$env:GITHUB_WORKSPACE\scripts\windows\invoke-ps-script.cmd"
-          $modules = Get-Content -LiteralPath "$env:GITHUB_WORKSPACE\scripts\windows\managed-modules.txt" |
-            Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') }
-          foreach ($module in $modules) {
-            & $bridge $helper -Action ProtectModule -ModuleName $module
-            if ($LASTEXITCODE -ne 0) { throw "signing helper failed for $module under normal policy" }
-          }
-
-      - name: Run Windows core installer directly
-        shell: pwsh
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
-        run: |
-          $source = (& chezmoi.exe source-path).Trim()
-          $repoRoot = if (Test-Path -LiteralPath (Join-Path $source 'install.ps1')) {
-            $source
-          }
-          elseif (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $source) 'install.ps1')) {
-            Split-Path -Parent $source
-          }
-          else {
-            throw "unable to resolve repository root from chezmoi source path: $source"
-          }
-          & pwsh.exe -NoProfile -File (Join-Path $repoRoot 'install.ps1') -NonInteractive -CoreOnly -RepoRoot $repoRoot
-          if ($LASTEXITCODE -ne 0) { throw "direct core installer failed with exit code $LASTEXITCODE" }
-
-      - name: Run Windows core installer through the bridge
-        shell: pwsh
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
-        run: |
-          $source = (& chezmoi.exe source-path).Trim()
-          $repoRoot = if (Test-Path -LiteralPath (Join-Path $source 'install.ps1')) {
-            $source
-          }
-          elseif (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $source) 'install.ps1')) {
-            Split-Path -Parent $source
-          }
-          else {
-            throw "unable to resolve repository root from chezmoi source path: $source"
-          }
-          & (Join-Path $repoRoot 'scripts\windows\invoke-ps-script.cmd') (Join-Path $repoRoot 'install.ps1') -NonInteractive -CoreOnly -RepoRoot $repoRoot
-          if ($LASTEXITCODE -ne 0) { throw "core installer failed with exit code $LASTEXITCODE" }
-
-      - name: Run Windows bootstrap wrapper idempotently
-        shell: pwsh
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
-        run: |
-          $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
-          Push-Location $runDirectory
-          try {
-            $bootstrap = Join-Path $env:GITHUB_WORKSPACE 'bootstrap.cmd'
-            & cmd.exe /d /c $bootstrap
-            if ($LASTEXITCODE -ne 0) { throw "bootstrap.cmd failed with exit code $LASTEXITCODE" }
-          }
-          finally { Pop-Location }
-
-      - name: Probe Windows deployed files and core CLI tools
-        shell: pwsh
-        run: |
-          $requiredFiles = @(
-            (Join-Path $HOME '.gitconfig'),
-            (Join-Path $HOME '.gitconfig.local'),
-            (Join-Path $HOME '.fdignore'),
-            (Join-Path $HOME '.wslconfig'),
-            (Join-Path $HOME '.config\starship\config.toml'),
-            (Join-Path $HOME '.config\pwsh\env.ps1'),
-            (Join-Path $HOME '.config\pwsh\lib\helpers.ps1'),
-            (Join-Path $HOME '.config\pwsh\lib\aliases.ps1'),
-            $PROFILE.CurrentUserAllHosts
-          )
-          foreach ($path in $requiredFiles) {
-            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "missing deployed file: $path" }
-          }
-          foreach ($command in @('micro','lsd','bat','fastfetch','fzf','fd','delta','jq','rg','mise')) {
-            $resolved = Get-Command -Name $command -ErrorAction SilentlyContinue
-            if ($null -eq $resolved) { throw "core CLI tool is unavailable: $command" }
-            Write-Host "$command -> $($resolved.Source)"
-          }
-          $source = (& chezmoi.exe source-path).Trim()
-          $sourceCommit = (git -C $source rev-parse HEAD).Trim()
-          if ($sourceCommit -ne $env:GITHUB_SHA) { throw "source commit $sourceCommit is not $env:GITHUB_SHA" }
-
-      - name: Probe Windows chezmoi idempotency
-        shell: pwsh
-        run: |
-          & chezmoi.exe apply
-          if ($LASTEXITCODE -ne 0) { throw 'first probe apply failed' }
-          & chezmoi.exe apply
-          if ($LASTEXITCODE -ne 0) { throw 'second probe apply failed' }
-          $status = @(& chezmoi.exe status --exclude=scripts)
-          if ($LASTEXITCODE -ne 0) { throw 'chezmoi status failed' }
-          $pending = @($status | Where-Object {
-            $line = [string]$_
-            $line.Length -ge 2 -and $line[1] -ne ' '
-          })
-          $status | ForEach-Object { Write-Host "STATUS: $_" }
-          if ($pending.Count -ne 0) { throw "chezmoi still has pending target changes: $($pending -join ' | ')" }
-
-      - name: Probe Windows create-only semantics
-        shell: pwsh
-        run: |
-          $config = Join-Path $HOME '.codex\config.toml'
-          $rules = Join-Path $HOME '.codex\rules\default.rules'
-          $configMarker = "ci-probe-create-only-$env:GITHUB_RUN_ID"
-          $rulesMarker = "ci-probe-create-only-rule-$env:GITHUB_RUN_ID"
-          Add-Content -LiteralPath $config -Value $configMarker
-          Add-Content -LiteralPath $rules -Value $rulesMarker
-          & chezmoi.exe apply
-          if ($LASTEXITCODE -ne 0) { throw 'create-only probe apply failed' }
-          if (-not ((Get-Content $config -Raw).Contains($configMarker))) { throw 'chezmoi overwrote create-only config.toml' }
-          if (-not ((Get-Content $rules -Raw).Contains($rulesMarker))) { throw 'chezmoi overwrote create-only default.rules' }
-          $status = @(& chezmoi.exe status --exclude=scripts)
-          $pending = @($status | Where-Object {
-            $line = [string]$_
-            $line.Length -ge 2 -and $line[1] -ne ' '
-          })
-          $status | ForEach-Object { Write-Host "STATUS: $_" }
-          if ($pending.Count -ne 0) { throw "create-only probe left pending target changes: $($pending -join ' | ')" }
-
-      - name: Probe Windows managed module imports
-        shell: pwsh
-        run: |
-          $modules = Get-Content -LiteralPath "$env:GITHUB_WORKSPACE\scripts\windows\managed-modules.txt" |
-            Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') }
-          foreach ($module in $modules) {
-            if ($module -eq 'git-aliases') {
-              Import-Module $module -Force -DisableNameChecking -ErrorAction Stop
-            } else {
-              Import-Module $module -Force -ErrorAction Stop
-            }
-          }
-
-      - name: Probe Windows normal policy did not create signing certificate
-        shell: pwsh
-        run: |
-          $certificate = @(Get-ChildItem Cert:\CurrentUser\My | Where-Object Subject -eq 'CN=jsilverdev Dotfiles Code Signing')
-          if ($certificate.Count -ne 0) { throw 'normal-policy probe unexpectedly found the dotfiles signing certificate' }
-
-      - name: Probe Windows chezmoi source Git cleanliness
-        shell: pwsh
-        run: |
-          $source = (& chezmoi.exe source-path).Trim()
-          $sourceStatus = @(git -C $source status --porcelain)
-          $sourceStatus | ForEach-Object { Write-Host "SOURCE STATUS: $_" }
-          if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -ne 0) { throw "chezmoi source is dirty: $($sourceStatus -join ' | ')" }
-
-      - name: Probe Windows Actions checkout Git cleanliness
-        shell: pwsh
-        run: |
-          $repoStatus = @(git -C $env:GITHUB_WORKSPACE status --porcelain)
-          $repoStatus | ForEach-Object { Write-Host "CHECKOUT STATUS: $_" }
-          if ($LASTEXITCODE -ne 0 -or $repoStatus.Count -ne 0) { throw "checkout is dirty: $($repoStatus -join ' | ')" }
-
-      - name: Probe Windows PowerShell profile startup
-        shell: pwsh
-        run: |
-          $profileOutput = @(& pwsh.exe -Command "Write-Output 'profile-ok'" 2>&1)
-          $profileOutput | ForEach-Object { Write-Host $_ }
-          if ($LASTEXITCODE -ne 0 -or -not ($profileOutput -contains 'profile-ok')) {
-            throw "PowerShell profile startup failed: $($profileOutput -join ' | ')"
-          }
-
-      - name: Assert Windows normal-policy state
-        shell: pwsh
-        run: |
-          & pwsh.exe -NoProfile -File "$env:GITHUB_WORKSPACE\tests\windows\assert-state.ps1" `
-            -RepoRoot $env:GITHUB_WORKSPACE -ExpectedCommit $env:GITHUB_SHA
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Create Windows update fixture
-        shell: pwsh
-        run: |
-          $updateClone = Join-Path $env:RUNNER_TEMP 'dotfiles-update'
-          git clone $env:DOTFILES_REPO $updateClone
-          git -C $updateClone config user.name ci
-          git -C $updateClone config user.email ci@example.invalid
-          $marker = "ci-update-marker-$env:GITHUB_RUN_ID"
-          Add-Content -Path (Join-Path $updateClone 'home\dot_fdignore') -Value $marker
-          git -C $updateClone add home/dot_fdignore
-          git -c commit.gpgsign=false -C $updateClone commit -m 'CI update fixture'
-          git -C $updateClone push origin HEAD:refs/heads/main
-          if ($LASTEXITCODE -ne 0) { throw 'unable to push Windows update fixture' }
-          Add-Content -Path $env:GITHUB_ENV -Value "UPDATE_MARKER=$marker"
-
-      - name: Exercise Windows update.cmd against the local remote
-        shell: pwsh
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
-        run: |
-          $runDirectory = Join-Path $env:RUNNER_TEMP 'dotfiles-run'
-          Push-Location $runDirectory
-          try {
-            $update = Join-Path $env:GITHUB_WORKSPACE 'update.cmd'
-            & cmd.exe /d /c $update
-            if ($LASTEXITCODE -ne 0) { throw "update.cmd failed with exit code $LASTEXITCODE" }
-          }
-          finally { Pop-Location }
-
-      - name: Assert Windows state after update
-        shell: pwsh
-        run: |
-          & pwsh.exe -NoProfile -File "$env:GITHUB_WORKSPACE\tests\windows\assert-state.ps1" `
-            -RepoRoot $env:GITHUB_WORKSPACE -UpdateMarker $env:UPDATE_MARKER
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
+          mkdir "%RUNNER_TEMP%\dotfiles-run" 2>nul
+          pushd "%RUNNER_TEMP%\dotfiles-run"
+          call "%GITHUB_WORKSPACE%\bootstrap.cmd"
+          set "E=%ERRORLEVEL%"
+          popd
+          exit /b %E%
+      - shell: pwsh
+        run: ./tests/windows/assert-state.ps1 -RepoRoot $env:GITHUB_WORKSPACE -ExpectedCommit $env:GITHUB_SHA
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\tests\windows\create-update-fixture.cmd"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\update.cmd"
+      - shell: pwsh
+        run: ./tests/windows/assert-state.ps1 -RepoRoot $env:GITHUB_WORKSPACE -UpdateMarker $env:UPDATE_MARKER
   windows-allsigned:
     runs-on: windows-2025
     timeout-minutes: 50
+    env: {DOTFILES_NONINTERACTIVE: "1", DOTFILES_CORE_ONLY: "1"}
     steps:
-      - name: Check out the exact revision
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Provision WinGet before changing execution policy
-        shell: pwsh
-        run: |
-          Write-Host 'Checking for winget.exe'
-          cmd /c where winget.exe
-          if ($LASTEXITCODE -ne 0) {
-            Install-PackageProvider -Name NuGet -Force | Out-Null
-            Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
-            Import-Module Microsoft.WinGet.Client -Force
-            Repair-WinGetPackageManager -Force -Latest
-          }
-          cmd /c where winget.exe
-          if ($LASTEXITCODE -ne 0) { throw 'winget.exe is unavailable after Microsoft.WinGet.Client repair' }
-          winget.exe --version
-          @(
-            (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\Microsoft.PowerShell'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\mise'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\chezmoi')
-          ) | ForEach-Object { Add-Content -Path $env:GITHUB_PATH -Value $_ }
-
-      - name: Create the exact-commit local bootstrap remote before AllSigned
-        shell: pwsh
-        run: |
-          $remote = Join-Path $env:RUNNER_TEMP "dotfiles-remote-$env:GITHUB_RUN_ID.git"
-          git init --bare $remote
-          $head = (git -C $env:GITHUB_WORKSPACE rev-parse HEAD).Trim()
-          if ($head -ne $env:GITHUB_SHA) { throw "checkout $head does not match GITHUB_SHA $env:GITHUB_SHA" }
-          $remoteUri = "file:///" + $remote.Replace('\', '/')
-          git -C $env:GITHUB_WORKSPACE push $remoteUri "$($env:GITHUB_SHA):refs/heads/main"
-          if ($LASTEXITCODE -ne 0) { throw "unable to push the checked-out commit to $remoteUri" }
-          git --git-dir=$remote show-ref --verify --quiet refs/heads/main
-          if ($LASTEXITCODE -ne 0) { throw 'local bootstrap remote has no main ref' }
-          git --git-dir=$remote symbolic-ref HEAD refs/heads/main
-          Add-Content -Path $env:GITHUB_ENV -Value "DOTFILES_REPO=$remoteUri"
-          Write-Host "Local bootstrap remote: $remoteUri"
-
-      - name: Create CI code-signing certificate
-        shell: pwsh
-        run: |
-          $smoke = Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'
-          @'
-          param([string]$Value)
-          if ($Value -ne 'bridge-ok') { throw "unexpected bridge value: $Value" }
-          '@ | Set-Content -LiteralPath $smoke
-
-          $signerSmoke = Join-Path $env:RUNNER_TEMP 'allsigned-signer-smoke.ps1'
-          @'
-          param([string]$Value)
-          if ($Value -ne 'signer-ok') { throw "unexpected signer value: $Value" }
-          '@ | Set-Content -LiteralPath $signerSmoke
-
-          $subject = 'CN=jsilverdev Dotfiles Code Signing'
-          $certificate = Get-ChildItem Cert:\CurrentUser\My |
-            Where-Object { $_.Subject -eq $subject -and $_.HasPrivateKey -and $_.NotAfter -gt (Get-Date) } |
-            Sort-Object NotAfter -Descending |
-            Select-Object -First 1
-          if ($null -eq $certificate) {
-            $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(10) -HashAlgorithm SHA256
-          }
-          Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Value $certificate.Thumbprint -NoNewline
-          Export-Certificate -Cert $certificate -FilePath (Join-Path $env:RUNNER_TEMP 'dotfiles-signing.cer') -Type CERT -Force | Out-Null
-
-      - name: Trust and verify CI code-signing certificate
-        shell: pwsh
-        timeout-minutes: 2
-        run: |
-          $certificatePath = Join-Path $env:RUNNER_TEMP 'dotfiles-signing.cer'
-          $thumbprint = (Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Raw).Trim()
-
-          $stores = @(
-            @{ Path = 'Cert:\LocalMachine\Root'; Name = 'LocalMachine\\Root' },
-            @{ Path = 'Cert:\CurrentUser\TrustedPublisher'; Name = 'CurrentUser\\TrustedPublisher' }
-          )
-          foreach ($store in $stores) {
-            $existing = Get-ChildItem $store.Path |
-              Where-Object Thumbprint -eq $thumbprint |
-              Select-Object -First 1
-            if ($null -eq $existing) {
-              Import-Certificate -FilePath $certificatePath -CertStoreLocation $store.Path -Confirm:$false | Out-Null
-            }
-            $trusted = Get-ChildItem $store.Path |
-              Where-Object Thumbprint -eq $thumbprint |
-              Select-Object -First 1
-            if ($null -eq $trusted) {
-              throw "CI code-signing certificate was not trusted in $($store.Name)"
-            }
-          }
-
-          $signingCertificate = Get-ChildItem Cert:\CurrentUser\My |
-            Where-Object Thumbprint -eq $thumbprint |
-            Select-Object -First 1
-          if ($null -eq $signingCertificate -or -not $signingCertificate.HasPrivateKey) {
-            throw 'CI code-signing certificate with private key is unavailable'
-          }
-
-          $smoke = Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'
-          Set-AuthenticodeSignature -FilePath $smoke -Certificate $signingCertificate -HashAlgorithm SHA256 | Out-Null
-          $signature = Get-AuthenticodeSignature -FilePath $smoke
-          if ($signature.Status -ne 'Valid' -or
-              $null -eq $signature.SignerCertificate -or
-              $signature.SignerCertificate.Thumbprint -ne $thumbprint) {
-            throw "trusted CI Authenticode signature is not valid: $($signature.Status) $($signature.StatusMessage)"
-          }
-
-      - name: Enable and prove CurrentUser AllSigned
-        shell: pwsh
-        run: |
-          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy AllSigned -Force
-          $currentUser = Get-ExecutionPolicy -Scope CurrentUser
-          $effective = Get-ExecutionPolicy
-          Get-ExecutionPolicy -List | Format-Table -AutoSize
-          Write-Host "CurrentUser=$currentUser Effective=$effective"
-          if ($currentUser -ne 'AllSigned' -or $effective -ne 'AllSigned') {
-            throw "unable to establish effective CurrentUser AllSigned: CurrentUser=$currentUser Effective=$effective"
-          }
-
-      - name: Execute trusted smoke script directly under AllSigned
+      - uses: actions/checkout@v7
+        with: {fetch-depth: 0, persist-credentials: false}
+      - shell: pwsh
+        run: ./tests/windows/prepare-ci.ps1
+      - shell: pwsh
+        run: ./tests/windows/enable-allsigned.ps1
+      - name: Prove unsigned scripts are rejected
         shell: cmd
         run: |
-          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
-          if errorlevel 1 exit /b 1
-
-      - name: Smoke-test centralized signer through the bridge under AllSigned
+          >"%RUNNER_TEMP%\unsigned.ps1" echo Write-Output unexpected
+          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\unsigned.ps1" >nul 2>&1
+          if not errorlevel 1 exit /b 1
+      - shell: cmd
+        run: pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
+      - name: Run bootstrap under AllSigned
         shell: cmd
         run: |
-          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\scripts\windows\signing.ps1" -Action ProtectFiles -Path "%RUNNER_TEMP%\allsigned-signer-smoke.ps1"
-          if errorlevel 1 exit /b 1
-          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-signer-smoke.ps1" -Value signer-ok
-          if errorlevel 1 exit /b 1
-
-      - name: Smoke-test signing bridge under AllSigned
-        shell: cmd
-        run: |
-          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
-          if errorlevel 1 exit /b 1
-
-      - name: Smoke-test deploy-pwsh hook target under AllSigned
-        shell: cmd
-        run: |
-          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\scripts\windows\deploy-pwsh.ps1" -RepoRoot "%GITHUB_WORKSPACE%"
-          if errorlevel 1 exit /b 1
-
-      - name: Run the real bootstrap through CMD and the signing bridge
-        id: allsigned_bootstrap
-        continue-on-error: true
-        shell: cmd
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
-          DOTFILES_BOOTSTRAP_DIAGNOSTICS: '1'
-        run: |
-          set "RUN_DIRECTORY=%RUNNER_TEMP%\dotfiles-run"
-          if not exist "%RUN_DIRECTORY%" mkdir "%RUN_DIRECTORY%"
-          pushd "%RUN_DIRECTORY%"
+          mkdir "%RUNNER_TEMP%\dotfiles-run" 2>nul
+          pushd "%RUNNER_TEMP%\dotfiles-run"
           call "%GITHUB_WORKSPACE%\bootstrap.cmd"
-          set "BOOTSTRAP_EXIT=%ERRORLEVEL%"
+          set "E=%ERRORLEVEL%"
           popd
-          echo AllSigned bootstrap exit=%BOOTSTRAP_EXIT%
-          echo exit_code=%BOOTSTRAP_EXIT%>>"%GITHUB_OUTPUT%"
-          exit /b %BOOTSTRAP_EXIT%
-
-      - name: AllSigned bootstrap failed during legacy cleanup
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '11'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed while validating WinGet
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '12'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed while ensuring Git
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '21'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed while ensuring PowerShell 7
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '22'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed while ensuring mise
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '23'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed while ensuring chezmoi
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '24'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed while refreshing PATH
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '25'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed during chezmoi init
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '31'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed during chezmoi apply or hook execution
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '33'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed during chezmoi update
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '34'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed resolving the repo root
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '32'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed inside install.ps1
-        if: steps.allsigned_bootstrap.outcome == 'failure' && steps.allsigned_bootstrap.outputs.exit_code == '40'
-        shell: cmd
-        run: exit /b 1
-
-      - name: AllSigned bootstrap failed with an unmapped diagnostic code
-        if: steps.allsigned_bootstrap.outcome == 'failure' && !contains(fromJSON('["11","12","21","22","23","24","25","31","32","33","34","40"]'), steps.allsigned_bootstrap.outputs.exit_code)
-        shell: cmd
-        run: exit /b 1
-
-      - name: Assert signed runtime and module state through the bridge
-        shell: cmd
-        run: |
-          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt"
-          if errorlevel 1 exit /b 1
-
-      - name: Create an update commit without changing the Actions checkout
-        shell: cmd
-        run: |
-          set "UPDATE_CLONE=%RUNNER_TEMP%\dotfiles-update"
-          git clone "%DOTFILES_REPO%" "%UPDATE_CLONE%"
-          if errorlevel 1 exit /b 1
-          git -C "%UPDATE_CLONE%" config user.name ci
-          git -C "%UPDATE_CLONE%" config user.email ci@example.invalid
-          set "UPDATE_MARKER=ci-update-marker-%GITHUB_RUN_ID%"
-          >>"%UPDATE_CLONE%\home\dot_fdignore" echo %UPDATE_MARKER%
-          git -C "%UPDATE_CLONE%" add home/dot_fdignore
-          git -c commit.gpgsign=false -C "%UPDATE_CLONE%" commit -m "CI update fixture"
-          git -C "%UPDATE_CLONE%" push origin HEAD:refs/heads/main
-          if errorlevel 1 exit /b 1
-          echo UPDATE_MARKER=%UPDATE_MARKER%>>"%GITHUB_ENV%"
-
-      - name: Exercise update.cmd under AllSigned
-        shell: cmd
-        env:
-          DOTFILES_NONINTERACTIVE: '1'
-          DOTFILES_CORE_ONLY: '1'
-        run: |
-          call "%GITHUB_WORKSPACE%\update.cmd"
-          if errorlevel 1 exit /b 1
-
-      - name: Recheck AllSigned state after update
-        shell: cmd
-        run: |
-          call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt" -UpdateMarker "%UPDATE_MARKER%"
-          if errorlevel 1 exit /b 1
+          exit /b %E%
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\tests\windows\create-update-fixture.cmd"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\update.cmd"
+      - shell: cmd
+        run: call "%GITHUB_WORKSPACE%\scripts\windows\invoke-ps-script.cmd" "%GITHUB_WORKSPACE%\tests\windows\assert-allsigned.ps1" -RepoRoot "%GITHUB_WORKSPACE%" -ThumbprintFile "%RUNNER_TEMP%\dotfiles-cert-thumbprint.txt" -UpdateMarker "%UPDATE_MARKER%"

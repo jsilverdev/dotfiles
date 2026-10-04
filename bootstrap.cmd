@@ -6,12 +6,8 @@ if defined DOTFILES_REPO (
 ) else (
     set "REPO_URL=https://github.com/jsilverdev/dotfiles.git"
 )
-
-set "BOOTSTRAP_FAILURE_CODE=11"
 call :remove_legacy_broken_links
 if errorlevel 1 goto bootstrap_failed
-
-set "BOOTSTRAP_FAILURE_CODE=12"
 where winget.exe >nul 2>&1
 if errorlevel 1 (
     echo WinGet is not registered for this user. Attempting App Installer registration...
@@ -26,21 +22,14 @@ if errorlevel 1 (
     echo WinGet is unavailable after App Installer registration. Check corporate policy or App Installer registration. 1>&2
     goto bootstrap_failed
 )
-
-set "BOOTSTRAP_FAILURE_CODE=21"
 call :ensure_package Git.Git git
 if errorlevel 1 goto bootstrap_failed
-set "BOOTSTRAP_FAILURE_CODE=22"
 call :ensure_package Microsoft.PowerShell pwsh
 if errorlevel 1 goto bootstrap_failed
-set "BOOTSTRAP_FAILURE_CODE=23"
 call :ensure_package jdx.mise mise
 if errorlevel 1 goto bootstrap_failed
-set "BOOTSTRAP_FAILURE_CODE=24"
 call :ensure_package twpayne.chezmoi chezmoi
 if errorlevel 1 goto bootstrap_failed
-
-set "BOOTSTRAP_FAILURE_CODE=25"
 call :refresh_path
 where git.exe >nul 2>&1
 if errorlevel 1 (
@@ -62,15 +51,11 @@ if errorlevel 1 (
     echo chezmoi is still unavailable after installation. 1>&2
     goto bootstrap_failed
 )
-
-set "BOOTSTRAP_FAILURE_CODE=31"
 call :initialize_chezmoi
 if errorlevel 1 (
     echo chezmoi initialization/update failed. 1>&2
     goto bootstrap_failed
 )
-
-set "BOOTSTRAP_FAILURE_CODE=32"
 call :resolve_repo_root
 if not defined REPO_ROOT (
     echo Unable to resolve the chezmoi working tree. 1>&2
@@ -80,8 +65,6 @@ if not exist "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" (
     echo Resolved chezmoi working tree does not contain the dotfiles scripts: "%REPO_ROOT%" 1>&2
     goto bootstrap_failed
 )
-
-set "BOOTSTRAP_FAILURE_CODE=40"
 if /I "%DOTFILES_NONINTERACTIVE%"=="1" if /I "%DOTFILES_CORE_ONLY%"=="1" (
     call "%REPO_ROOT%\scripts\windows\invoke-ps-script.cmd" "%REPO_ROOT%\install.ps1" -NonInteractive -CoreOnly -RepoRoot "%REPO_ROOT%"
 ) else if /I "%DOTFILES_NONINTERACTIVE%"=="1" (
@@ -95,7 +78,6 @@ if errorlevel 1 goto bootstrap_failed
 exit /b 0
 
 :bootstrap_failed
-if /I "%DOTFILES_BOOTSTRAP_DIAGNOSTICS%"=="1" exit /b %BOOTSTRAP_FAILURE_CODE%
 exit /b 1
 
 :ensure_package
@@ -138,7 +120,6 @@ exit /b 1
 
 :initialize_chezmoi
 if exist "%CD%\.chezmoiroot" (
-    set "BOOTSTRAP_FAILURE_CODE=33"
     chezmoi.exe --source "%CD%" apply
     exit /b %ERRORLEVEL%
 )
@@ -146,16 +127,11 @@ set "SOURCE_ROOT="
 for /f "delims=" %%R in ('chezmoi.exe source-path 2^>nul') do set "SOURCE_ROOT=%%R"
 if defined SOURCE_ROOT if exist "%SOURCE_ROOT%\.chezmoiroot" goto existing_chezmoi
 if defined SOURCE_ROOT for %%P in ("%SOURCE_ROOT%\..") do if exist "%%~fP\.chezmoiroot" goto existing_chezmoi
-
-set "BOOTSTRAP_FAILURE_CODE=31"
 chezmoi.exe init "%REPO_URL%"
 if errorlevel 1 exit /b %ERRORLEVEL%
-
-set "BOOTSTRAP_FAILURE_CODE=33"
 chezmoi.exe apply
 exit /b %ERRORLEVEL%
 
 :existing_chezmoi
-set "BOOTSTRAP_FAILURE_CODE=34"
 chezmoi.exe update
 exit /b %ERRORLEVEL%

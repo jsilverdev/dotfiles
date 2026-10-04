@@ -60,8 +60,10 @@ function Invoke-SigningHelper {
         [string]$ModuleName
     )
 
-    # The signing helper performs the effective-policy check. Calling it on a
-    # normal-policy machine is intentionally a no-op.
+    if ($env:DOTFILES_SIGNING_REQUIRED -ne "1" -and (Get-ExecutionPolicy) -ne "AllSigned") {
+        return
+    }
+
     $helper = Join-Path $RepoRoot "scripts\windows\signing.ps1"
     $bridge = Join-Path $RepoRoot "scripts\windows\invoke-ps-script.cmd"
     if (-not (Test-Path -LiteralPath $helper) -or -not (Test-Path -LiteralPath $bridge)) {
@@ -382,6 +384,11 @@ if (-not $CoreOnly) {
 }
 Configure-Git
 Install-MustHaveApps
-if (-not $CoreOnly) { Configure-WindowsTerminal }
-Install-OptionalApps
+if (-not $CoreOnly) {
+    Configure-WindowsTerminal
+    Install-OptionalApps
+}
+else {
+    Write-Host "Skipping optional applications in core-only mode." -ForegroundColor Yellow
+}
 Configure-Wsl

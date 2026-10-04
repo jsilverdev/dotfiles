@@ -96,14 +96,14 @@ detect_arch() {
 function install_with_apt () {
     local app=$1
 
-    if hash "${app}" 2> /dev/null && ! updates_enabled; then
+    if command -v "${app}" >/dev/null 2>&1 && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
     elif dpkg -s "${app}" &> /dev/null && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via APT${RESET}"
     elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
         echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
     else
-        if updates_enabled && { hash "${app}" 2> /dev/null || dpkg -s "${app}" &> /dev/null; }; then
+        if updates_enabled && { command -v "${app}" >/dev/null 2>&1 || dpkg -s "${app}" &> /dev/null; }; then
             echo -e "${CYAN}[Updating]${LIGHT} ${app}...${RESET}"
         else
             echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
@@ -116,10 +116,10 @@ function check_package_or_run () {
     local app=$1
     local installer=$2
 
-    if hash "$app" 2> /dev/null && ! updates_enabled; then
+    if command -v "$app" >/dev/null 2>&1 && ! updates_enabled; then
         echo -e "${YELLOW}[Skipping]${LIGHT} $app is already installed${RESET}"
     else
-        if hash "$app" 2> /dev/null; then
+        if command -v "$app" >/dev/null 2>&1; then
             echo -e "${CYAN}[Updating]${LIGHT} $app...${RESET}"
         else
             echo -e "${CYAN}[Installing]${LIGHT} Downloading $app...${RESET}"
@@ -245,7 +245,7 @@ function install_sheldon () {
 
 function install_debian_packages () {
 
-    debian_apps=(
+    local debian_apps=(
         "git"
         "curl"
         "wget"
@@ -267,7 +267,7 @@ function install_debian_packages () {
     )
 
     for app in "${debian_apps[@]}"; do
-        install_with_apt $app
+        install_with_apt "$app"
     done
 
     check_package_or_run "fastfetch" "install_fastfetch"
@@ -285,16 +285,16 @@ function install_with_pacman () {
     local pacman_status
 
     pacman_app=$(printf '%s' "$app" | tr 'A-Z' 'a-z')
-    pacman_status=$(pacman -Qk "$pacman_app" 2> /dev/null)
+    pacman_status=$(pacman -Qk "$pacman_app" 2>/dev/null || true)
 
-    if hash "${app}" 2> /dev/null && ! updates_enabled; then
+    if command -v "${app}" >/dev/null 2>&1 && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed${RESET}"
         elif [[ "$pacman_status" == *"total files"* ]] && ! updates_enabled; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Pacman${RESET}"
         elif hash flatpak 2> /dev/null && [[ ! -z $(echo $(flatpak list --columns=ref | grep $app)) ]]; then
             echo -e "${YELLOW}[Skipping]${LIGHT} ${app} is already installed via Flatpak${RESET}"
         else
-            if updates_enabled && { hash "${app}" 2> /dev/null || [[ "$pacman_status" == *"total files"* ]]; }; then
+            if updates_enabled && { command -v "${app}" >/dev/null 2>&1 || [[ "$pacman_status" == *"total files"* ]]; }; then
                 echo -e "${CYAN}[Updating]${LIGHT} ${app}...${RESET}"
             else
                 echo -e "${CYAN}[Installing]${LIGHT} Downloading ${app}...${RESET}"
@@ -304,7 +304,7 @@ function install_with_pacman () {
 }
 
 function install_arch_packages () {
-    pacman_apps=(
+    local pacman_apps=(
         "git"
         "curl"
         "wget"
@@ -333,11 +333,11 @@ function install_arch_packages () {
     )
 
     for app in "${pacman_apps[@]}"; do
-        install_with_pacman $app
+        install_with_pacman "$app"
     done
 
     # Install yay
-    if hash "yay" 2> /dev/null; then
+    if command -v yay >/dev/null 2>&1; then
         echo -e "${YELLOW}[Skipping]${LIGHT} yay is already installed${RESET}"
     else
         sudo pacman -S --needed git base-devel && git clone https://aur.archlinux.org/yay.git ~/.yay && (cd ~/.yay && makepkg -si) && rm -rf ~/.yay
@@ -358,7 +358,7 @@ function install_must_have_packages() {
 }
 
 function setup_sheldon_plugins () {
-    if hash "sheldon" 2> /dev/null; then
+    if command -v sheldon >/dev/null 2>&1; then
         sheldon lock
     fi
 }
@@ -368,7 +368,7 @@ function setup_default_shell() {
     local target_shell
 
     current_shell=$(getent passwd "$target_user" | cut -d: -f7)
-    target_shell="$(which zsh)"
+    target_shell="$(command -v zsh)"
 
     if [ "$current_shell" != "$target_shell" ]; then
         chsh -s "$target_shell" "$target_user"
@@ -422,7 +422,7 @@ function install_docker () {
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh ./get-docker.sh
     rm get-docker.sh
-    sudo usermod -aG docker $USER
+    sudo usermod -aG docker "${USER:-$(id -un)}"
 }
 
 function install_dagger () {

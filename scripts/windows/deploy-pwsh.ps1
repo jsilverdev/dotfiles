@@ -36,13 +36,13 @@ foreach ($file in $files) {
     Copy-Item -LiteralPath $source -Destination $file.Destination -Force
 }
 
-# Always call the centralized signing helper. It is a no-op unless the effective
-# PowerShell execution policy is AllSigned. The CMD bridge itself is AllSigned-safe.
-$helper = Join-Path $repo "scripts\windows\signing.ps1"
-$bridge = Join-Path $repo "scripts\windows\invoke-ps-script.cmd"
-foreach ($destination in @($files | ForEach-Object Destination)) {
-    & $bridge $helper -Action ProtectFiles -Path $destination
-    if ($LASTEXITCODE -ne 0) {
-        throw "PowerShell runtime signing failed for $destination with exit code $LASTEXITCODE."
+if ($env:DOTFILES_SIGNING_REQUIRED -eq "1" -or (Get-ExecutionPolicy) -eq "AllSigned") {
+    $helper = Join-Path $repo "scripts\windows\signing.ps1"
+    $bridge = Join-Path $repo "scripts\windows\invoke-ps-script.cmd"
+    foreach ($destination in @($files | ForEach-Object Destination)) {
+        & $bridge $helper -Action ProtectFiles -Path $destination
+        if ($LASTEXITCODE -ne 0) {
+            throw "PowerShell runtime signing failed for $destination with exit code $LASTEXITCODE."
+        }
     }
 }
