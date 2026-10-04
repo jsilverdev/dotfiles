@@ -61,7 +61,6 @@ fi
 
 command -v git >/dev/null 2>&1 || { printf 'Git is required but unavailable.\n' >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { printf 'curl is required but unavailable.\n' >&2; exit 1; }
-command -v wget >/dev/null 2>&1 || { printf 'wget is required but unavailable.\n' >&2; exit 1; }
 command -v zsh >/dev/null 2>&1 || { printf 'zsh is required but unavailable.\n' >&2; exit 1; }
 
 if [[ "$DISTRO" == "debian" ]] && ! command -v chezmoi >/dev/null 2>&1; then
