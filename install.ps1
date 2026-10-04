@@ -281,23 +281,6 @@ function Install-OptionalApps {
     Refresh-Path
 }
 
-function Invoke-FontDownload {
-    param(
-        [Parameter(Mandatory)][string]$Uri,
-        [Parameter(Mandatory)][string]$Destination
-    )
-
-    $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
-    if ($null -eq $curl) {
-        throw "curl.exe is required to download fonts."
-    }
-
-    & $curl.Source --fail --silent --show-error --location $Uri --output $Destination
-    if ($LASTEXITCODE -ne 0) {
-        throw "Font download failed from $Uri (exit code $LASTEXITCODE)."
-    }
-}
-
 function Expand-FontArchive {
     param(
         [Parameter(Mandatory)][string]$Archive,
@@ -318,33 +301,15 @@ function Expand-FontArchive {
     }
 }
 
-function Get-LatestReleaseAssetUrl {
-    param(
-        [Parameter(Mandatory)][string]$Repository,
-        [Parameter(Mandatory)][string]$AssetPattern
-    )
-
-    $releaseJson = [IO.Path]::GetTempFileName()
-    try {
-        Invoke-FontDownload -Uri "https://api.github.com/repos/$Repository/releases/latest" -Destination $releaseJson
-        $document = [Text.Json.JsonDocument]::Parse([IO.File]::ReadAllText($releaseJson))
-        try {
-            foreach ($asset in $document.RootElement.GetProperty("assets").EnumerateArray()) {
-                $name = $asset.GetProperty("name").GetString()
-                if ($name -match $AssetPattern) {
-                    return $asset.GetProperty("browser_download_url").GetString()
-                }
-            }
-        }
-        finally {
-            $document.Dispose()
-        }
-    }
-    finally {
-        Remove-Item -LiteralPath $releaseJson -Force -ErrorAction SilentlyContinue
+function Get-ManagedFontPatterns {
+    $manifest = Join-Path $RepoRoot "scripts\windows\managed-fonts.txt"
+    if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
+        throw "The managed font manifest is missing from $RepoRoot."
     }
 
-    throw "Unable to locate release asset '$AssetPattern' in $Repository."
+    return @(Get-Content -LiteralPath $manifest | Where-Object {
+        $_.Trim() -and -not $_.Trim().StartsWith("#")
+    } | ForEach-Object { $_.Trim() })
 }
 
 function Download-Fonts {
@@ -352,13 +317,17 @@ function Download-Fonts {
     New-Item -ItemType Directory -Force -Path $fonts | Out-Null
 
     if (@(Get-ChildItem -LiteralPath $fonts -Filter "CascadiaCode*.ttf" -File -ErrorAction SilentlyContinue).Count -eq 0) {
-        $assetUrl = Get-LatestReleaseAssetUrl -Repository "microsoft/cascadia-code" -AssetPattern '^CascadiaCode-.*\.zip$'
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/microsoft/cascadia-code/releases/latest" -Headers @{ "User-Agent" = "PowerShell" }
+        $asset = @($release.assets | Where-Object name -Match '^CascadiaCode-.*\.zip$' | Select-Object -First 1)
+        if ($asset.Count -ne 1) {
+            throw "Unable to locate the Cascadia Code ZIP asset in the latest GitHub release."
+        }
+
         $archive = Join-Path $fonts "CascadiaCode.zip"
         $extract = Join-Path $fonts ".extract-CascadiaCode"
-
         try {
             Write-Host "Downloading Cascadia Code..." -ForegroundColor Cyan
-            Invoke-FontDownload -Uri $assetUrl -Destination $archive
+            Invoke-WebRequest -Uri $asset[0].browser_download_url -OutFile $archive
             Expand-FontArchive -Archive $archive -Destination $extract
             Remove-Item -Recurse -Force (Join-Path $extract "ttf\static") -ErrorAction SilentlyContinue
 
@@ -384,10 +353,9 @@ function Download-Fonts {
 
         $archive = Join-Path $fonts "$($font.Asset).tar.xz"
         $extract = Join-Path $fonts ".extract-$($font.Asset)"
-
         try {
             Write-Host "Downloading $($font.Name)..." -ForegroundColor Cyan
-            Invoke-FontDownload -Uri "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$($font.Asset).tar.xz" -Destination $archive
+            Invoke-WebRequest -Uri "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/$($font.Asset).tar.xz" -OutFile $archive
             Expand-FontArchive -Archive $archive -Destination $extract
 
             $fontFiles = @(Get-ChildItem -LiteralPath $extract -Filter *.ttf -Recurse -File)
@@ -402,7 +370,7 @@ function Download-Fonts {
         }
     }
 
-    foreach ($requiredPattern in @("CascadiaCode*.ttf", "CaskaydiaCove*.ttf", "CaskaydiaMono*.ttf")) {
+    foreach ($requiredPattern in Get-ManagedFontPatterns) {
         if (@(Get-ChildItem -LiteralPath $fonts -Filter $requiredPattern -File -ErrorAction SilentlyContinue).Count -eq 0) {
             throw "Expected font files are missing after download: $requiredPattern"
         }

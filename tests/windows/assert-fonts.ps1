@@ -12,6 +12,7 @@ function Fail([string]$Message) {
 $sourceDir = Join-Path $RepoRoot "fonts"
 $userFontsDir = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Fonts"
 $fontRegistrySubKey = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+$manifest = Join-Path $RepoRoot "scripts\windows\managed-fonts.txt"
 
 if (-not (Test-Path -LiteralPath $sourceDir -PathType Container)) {
     Fail "font source directory is missing: $sourceDir"
@@ -19,13 +20,20 @@ if (-not (Test-Path -LiteralPath $sourceDir -PathType Container)) {
 if (-not (Test-Path -LiteralPath $userFontsDir -PathType Container)) {
     Fail "current-user font directory is missing: $userFontsDir"
 }
+if (-not (Test-Path -LiteralPath $manifest -PathType Leaf)) {
+    Fail "managed font manifest is missing: $manifest"
+}
 
 $sourceFonts = @(Get-ChildItem -Path $sourceDir -Include *.otc,*.otf,*.ttc,*.ttf -Recurse -File | Sort-Object Name -Unique)
 if ($sourceFonts.Count -eq 0) {
     Fail "no downloaded fonts were found in $sourceDir"
 }
 
-foreach ($requiredPattern in @("CascadiaCode*.ttf", "CaskaydiaCove*.ttf", "CaskaydiaMono*.ttf")) {
+$requiredPatterns = @(Get-Content -LiteralPath $manifest | Where-Object {
+    $_.Trim() -and -not $_.Trim().StartsWith("#")
+} | ForEach-Object { $_.Trim() })
+
+foreach ($requiredPattern in $requiredPatterns) {
     if (@($sourceFonts | Where-Object Name -Like $requiredPattern).Count -eq 0) {
         Fail "expected font family is missing from the downloaded source: $requiredPattern"
     }

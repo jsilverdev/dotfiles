@@ -41,6 +41,7 @@ required_paths = (
     "scripts/windows/managed-apps.csv",
     "scripts/windows/cleanup-broken-managed-links.ps1",
     "scripts/windows/managed-modules.txt",
+    "scripts/windows/managed-fonts.txt",
     "scripts/windows/invoke-ps-script.cmd",
     "scripts/windows/invoke-ps-script-bridge.ps1",
     "scripts/windows/signing.ps1",
