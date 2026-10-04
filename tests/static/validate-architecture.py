@@ -47,6 +47,7 @@ required_paths = (
     "scripts/windows/deploy-pwsh.ps1",
     "home/.chezmoiscripts/run_after_90-deploy-pwsh.cmd.tmpl",
     "tests/windows/assert-migration.ps1",
+    "tests/windows/assert-fonts.ps1",
 )
 for relative in required_paths:
     if not (ROOT / relative).exists():
