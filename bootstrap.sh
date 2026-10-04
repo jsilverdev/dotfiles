@@ -15,6 +15,29 @@ configure_local_chezmoi_source() {
     fi
 }
 
+resolve_repo_root() {
+    local candidate parent
+    if [[ -f "$PWD/.chezmoiroot" && -f "$PWD/install.sh" ]]; then
+        printf '%s\n' "$PWD"
+        return 0
+    fi
+
+    for candidate in "$(chezmoi execute-template '{{ .chezmoi.workingTree }}' 2>/dev/null || true)" "$(chezmoi source-path 2>/dev/null || true)"; do
+        [[ -n "$candidate" ]] || continue
+        if [[ -f "$candidate/install.sh" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+        parent="$(dirname "$candidate")"
+        if [[ -f "$parent/install.sh" ]]; then
+            printf '%s\n' "$parent"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 if [[ -f /etc/debian_version ]] && command -v apt-get >/dev/null 2>&1; then
     DISTRO="debian"
     missing=()
@@ -51,38 +74,25 @@ fi
 export PATH="$HOME/.local/bin:$PATH"
 command -v chezmoi >/dev/null 2>&1 || { printf 'chezmoi installation failed.\n' >&2; exit 1; }
 
+existing_source=false
 if [[ -f "$PWD/.chezmoiroot" ]]; then
     configure_local_chezmoi_source
-    chezmoi --source "$PWD" apply
 else
     SOURCE_ROOT="$(chezmoi source-path 2>/dev/null || true)"
     if [[ -f "$SOURCE_ROOT/.chezmoiroot" || -f "$(dirname "$SOURCE_ROOT")/.chezmoiroot" ]]; then
-        chezmoi update
+        existing_source=true
     else
-        chezmoi init --apply "$REPO_URL"
+        chezmoi init "$REPO_URL"
     fi
 fi
 
-resolve_repo_root() {
-    local candidate parent
-    if [[ -f "$PWD/.chezmoiroot" && -f "$PWD/install.sh" ]]; then
-        printf '%s\n' "$PWD"
-        return 0
-    fi
-    for candidate in "$(chezmoi execute-template '{{ .chezmoi.workingTree }}' 2>/dev/null || true)" "$(chezmoi source-path)"; do
-        [[ -n "$candidate" ]] || continue
-        if [[ -f "$candidate/install.sh" ]]; then
-            printf '%s\n' "$candidate"
-            return 0
-        fi
-        parent="$(dirname "$candidate")"
-        if [[ -f "$parent/install.sh" ]]; then
-            printf '%s\n' "$parent"
-            return 0
-        fi
-    done
-    return 1
-}
-
 REPO_ROOT="$(resolve_repo_root)" || { printf 'Unable to resolve the chezmoi working tree.\n' >&2; exit 1; }
+
+if [[ "$existing_source" == true ]]; then
+    git -C "$REPO_ROOT" pull --autostash --rebase
+fi
+
+"$REPO_ROOT/scripts/linux/cleanup-broken-managed-links.sh" "$REPO_ROOT"
+chezmoi --source "$REPO_ROOT" apply
+
 exec "$REPO_ROOT/install.sh"

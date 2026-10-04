@@ -35,15 +35,18 @@ if (ROOT / ".chezmoiroot").read_text(encoding="utf-8").strip() != "home":
 required_paths = (
     "home",
     "scripts/linux/packages-debian.txt",
+    "scripts/linux/cleanup-broken-managed-links.sh",
     "scripts/linux/packages-arch.txt",
     "scripts/linux/required-commands.txt",
     "scripts/windows/managed-apps.csv",
+    "scripts/windows/cleanup-broken-managed-links.ps1",
     "scripts/windows/managed-modules.txt",
     "scripts/windows/invoke-ps-script.cmd",
     "scripts/windows/invoke-ps-script-bridge.ps1",
     "scripts/windows/signing.ps1",
     "scripts/windows/deploy-pwsh.ps1",
     "home/.chezmoiscripts/run_after_90-deploy-pwsh.cmd.tmpl",
+    "tests/windows/assert-migration.ps1",
 )
 for relative in required_paths:
     if not (ROOT / relative).exists():
