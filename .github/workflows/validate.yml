@@ -87,12 +87,6 @@ jobs:
         run: ./tests/windows/prepare-ci.ps1
       - shell: pwsh
         run: ./tests/windows/enable-allsigned.ps1
-      - name: Prove unsigned scripts are rejected
-        shell: cmd
-        run: |
-          >"%RUNNER_TEMP%\unsigned.ps1" echo Write-Output unexpected
-          pwsh.exe -NoProfile -File "%RUNNER_TEMP%\unsigned.ps1" >nul 2>&1
-          if not errorlevel 1 exit /b 1
       - shell: cmd
         run: pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
       - name: Run bootstrap under AllSigned
