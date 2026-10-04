@@ -41,12 +41,14 @@ required_paths = (
     "scripts/windows/managed-apps.csv",
     "scripts/windows/cleanup-broken-managed-links.ps1",
     "scripts/windows/managed-modules.txt",
+    "scripts/windows/managed-fonts.txt",
     "scripts/windows/invoke-ps-script.cmd",
     "scripts/windows/invoke-ps-script-bridge.ps1",
     "scripts/windows/signing.ps1",
     "scripts/windows/deploy-pwsh.ps1",
     "home/.chezmoiscripts/run_after_90-deploy-pwsh.cmd.tmpl",
     "tests/windows/assert-migration.ps1",
+    "tests/windows/assert-fonts.ps1",
 )
 for relative in required_paths:
     if not (ROOT / relative).exists():
