@@ -537,7 +537,7 @@ jobs:
           $status | ForEach-Object { Write-Host "STATUS: $_" }
           if ($pending.Count -ne 0) { throw "create-only probe left pending target changes: $($pending -join ' | ')" }
 
-      - name: Probe Windows modules and source cleanliness
+      - name: Probe Windows managed module imports
         shell: pwsh
         run: |
           $modules = Get-Content -LiteralPath "$env:GITHUB_WORKSPACE\scripts\windows\managed-modules.txt" |
@@ -549,12 +549,26 @@ jobs:
               Import-Module $module -Force -ErrorAction Stop
             }
           }
+
+      - name: Probe Windows normal policy did not create signing certificate
+        shell: pwsh
+        run: |
           $certificate = @(Get-ChildItem Cert:\CurrentUser\My | Where-Object Subject -eq 'CN=jsilverdev Dotfiles Code Signing')
           if ($certificate.Count -ne 0) { throw 'normal-policy probe unexpectedly found the dotfiles signing certificate' }
+
+      - name: Probe Windows chezmoi source Git cleanliness
+        shell: pwsh
+        run: |
           $source = (& chezmoi.exe source-path).Trim()
           $sourceStatus = @(git -C $source status --porcelain)
+          $sourceStatus | ForEach-Object { Write-Host "SOURCE STATUS: $_" }
           if ($LASTEXITCODE -ne 0 -or $sourceStatus.Count -ne 0) { throw "chezmoi source is dirty: $($sourceStatus -join ' | ')" }
+
+      - name: Probe Windows Actions checkout Git cleanliness
+        shell: pwsh
+        run: |
           $repoStatus = @(git -C $env:GITHUB_WORKSPACE status --porcelain)
+          $repoStatus | ForEach-Object { Write-Host "CHECKOUT STATUS: $_" }
           if ($LASTEXITCODE -ne 0 -or $repoStatus.Count -ne 0) { throw "checkout is dirty: $($repoStatus -join ' | ')" }
 
       - name: Probe Windows PowerShell profile startup
@@ -729,11 +743,15 @@ jobs:
           pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-bridge-smoke.ps1" -Value bridge-ok
           if errorlevel 1 exit /b 1
 
+      - name: Create bridge-equivalent signed copy under AllSigned
+        shell: cmd
+        run: |
+          pwsh.exe -NoProfile -Command "$thumb=(Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Raw).Trim(); $cert=Get-Item ('Cert:\CurrentUser\My\'+$thumb); $src=Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'; $dst=Join-Path $env:RUNNER_TEMP 'allsigned-direct-copy.ps1'; Copy-Item -LiteralPath $src -Destination $dst -Force; $null=Set-AuthenticodeSignature -FilePath $dst -Certificate $cert -HashAlgorithm SHA256; $sig=Get-AuthenticodeSignature -FilePath $dst; if($sig.Status -ne 'Valid'){throw ('signed copy invalid: '+$sig.Status+' '+$sig.StatusMessage)}"
+          if errorlevel 1 exit /b 1
+
       - name: Execute bridge-equivalent signed copy under AllSigned
         shell: cmd
         run: |
-          pwsh.exe -NoProfile -Command "$thumb=(Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'dotfiles-cert-thumbprint.txt') -Raw).Trim(); $cert=Get-ChildItem Cert:\CurrentUser\My ^| Where-Object Thumbprint -eq $thumb ^| Select-Object -First 1; $src=Join-Path $env:RUNNER_TEMP 'allsigned-bridge-smoke.ps1'; $dst=Join-Path $env:RUNNER_TEMP 'allsigned-direct-copy.ps1'; Copy-Item -LiteralPath $src -Destination $dst -Force; Set-AuthenticodeSignature -FilePath $dst -Certificate $cert -HashAlgorithm SHA256 ^| Out-Null; $sig=Get-AuthenticodeSignature -FilePath $dst; if($sig.Status -ne 'Valid'){throw ('signed copy invalid: '+$sig.Status)}"
-          if errorlevel 1 exit /b 1
           pwsh.exe -NoProfile -File "%RUNNER_TEMP%\allsigned-direct-copy.ps1" -Value bridge-ok
           if errorlevel 1 exit /b 1
 
