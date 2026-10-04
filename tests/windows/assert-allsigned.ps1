@@ -87,16 +87,20 @@ function Assert-AuthenticodeFiles {
             (Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\Modules")
         ) -join [IO.Path]::PathSeparator
 
-        $command = @(
-            "`$ErrorActionPreference = 'Stop'"
-            "`$paths = @(Get-Content -LiteralPath `$env:DOTFILES_SIGNATURE_MANIFEST -Raw | ConvertFrom-Json)"
-            "foreach (`$path in `$paths) {"
-            "    `$signature = Get-AuthenticodeSignature -LiteralPath `$path"
-            "    if (`$signature.Status -ne 'Valid') { throw \"invalid Authenticode signature: `$path (`$(`$signature.Status))\" }"
-            "    if (`$null -eq `$signature.SignerCertificate -or `$signature.SignerCertificate.Thumbprint -ne `$env:DOTFILES_EXPECTED_THUMBPRINT) { throw \"unexpected Authenticode signer: `$path\" }"
-            "    Write-Output \"Valid signature: `$path\""
-            "}"
-        ) -join [Environment]::NewLine
+        $command = @'
+$ErrorActionPreference = 'Stop'
+$paths = @(Get-Content -LiteralPath $env:DOTFILES_SIGNATURE_MANIFEST -Raw | ConvertFrom-Json)
+foreach ($path in $paths) {
+    $signature = Get-AuthenticodeSignature -LiteralPath $path
+    if ($signature.Status -ne 'Valid') {
+        throw "invalid Authenticode signature: $path ($($signature.Status))"
+    }
+    if ($null -eq $signature.SignerCertificate -or $signature.SignerCertificate.Thumbprint -ne $env:DOTFILES_EXPECTED_THUMBPRINT) {
+        throw "unexpected Authenticode signer: $path"
+    }
+    Write-Output "Valid signature: $path"
+}
+'@
         $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
 
         & $windowsPowerShell -NoProfile -NonInteractive -EncodedCommand $encodedCommand
