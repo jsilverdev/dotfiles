@@ -252,11 +252,14 @@ function Install-OptionalApps {
     }
 
     $optionalApps = @($ManagedApps | Where-Object Category -eq "optional")
+    $wslOption = $optionalApps.Count + 1
+
     Write-Host "             Optionals"
     Write-Host "-----------------------------------" -ForegroundColor Cyan
     for ($i = 0; $i -lt $optionalApps.Count; $i++) {
         Write-Host ("{0}. Install {1}" -f ($i + 1), $optionalApps[$i].Name)
     }
+    Write-Host ("{0}. Install WSL" -f $wslOption)
     Write-Host "You can use ranges like 1-4 or individual numbers separated by commas" -ForegroundColor Yellow
 
     $rawOptions = Read-Host "Select options [e.g. 1-4,8,10]"
@@ -271,8 +274,23 @@ function Install-OptionalApps {
         }
     }
 
-    $options = @($options | Where-Object { $_ -gt 0 -and $_ -le $optionalApps.Count } | Select-Object -Unique | Sort-Object)
+    $options = @($options | Where-Object { $_ -gt 0 -and $_ -le $wslOption } | Select-Object -Unique | Sort-Object)
     foreach ($index in $options) {
+        if ($index -eq $wslOption) {
+            $wsl = Get-Command wsl -ErrorAction SilentlyContinue
+            if (-not $wsl) {
+                Write-Host "WSL command is unavailable on this system. Skipping WSL installation." -ForegroundColor Yellow
+                continue
+            }
+
+            Write-Host "Installing WSL..." -ForegroundColor Cyan
+            & $wsl.Source --install --no-distribution
+            if ($LASTEXITCODE -ne 0) {
+                throw "WSL installation failed (exit code $LASTEXITCODE)."
+            }
+            continue
+        }
+
         $app = $optionalApps[$index - 1]
         Write-Host "Installing $($app.Name)..." -ForegroundColor Cyan
         Install-WithWinget -AppId $app.AppId -Alias $app.Alias -Scope $app.Scope -Update:$Update
@@ -280,7 +298,6 @@ function Install-OptionalApps {
     if ($options.Count -eq 0) { Write-Host "Skipping optional installs..." -ForegroundColor Yellow }
     Refresh-Path
 }
-
 function Expand-FontArchive {
     param(
         [Parameter(Mandatory)][string]$Archive,
@@ -439,17 +456,6 @@ function Configure-WindowsTerminal {
     if ($LASTEXITCODE -ne 0) { throw "Windows Terminal configuration merge failed." }
 }
 
-function Configure-Wsl {
-    if ($NonInteractive) {
-        Write-Host "Skipping WSL installation in non-interactive mode." -ForegroundColor Yellow
-        return
-    }
-    if (Get-Command wsl -ErrorAction SilentlyContinue) {
-        Write-Host "Installing WSL..." -ForegroundColor Cyan
-        & wsl --install --no-distribution
-    }
-}
-
 Refresh-Path
 Check-RequiredApps
 
@@ -466,5 +472,3 @@ if (-not $NonInteractive) {
 else {
     Write-Host "Skipping terminal configuration and optional applications in non-interactive mode." -ForegroundColor Yellow
 }
-
-Configure-Wsl
