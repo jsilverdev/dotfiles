@@ -14,12 +14,11 @@ workstation,PowerToys,Microsoft.PowerToys,,
 workstation,Visual Studio Code,Microsoft.VisualStudioCode,code,user
 optional,Google Chrome,Google.Chrome,,
 optional,KeePassXC,KeePassXCTeam.KeePassXC,,
-optional,DBeaver,dbeaver.dbeaver,,
-optional,Postman,Postman.Postman,,
-optional,Bruno,Bruno.Bruno,,
-optional,kubectl,Kubernetes.kubectl,kubectl,
-optional,GIMP,GIMP.GIMP,,
+optional,DBeaver,DBeaver.DBeaver.Community,,user
+optional,Postman,Postman.Postman,,user
+optional,Bruno,Bruno.Bruno,,user
+optional,GIMP,GIMP.GIMP,,user
 optional,Android Studio,Google.AndroidStudio,,
 optional,Steam,Valve.Steam,,
-optional,Discord,Discord.Discord,,
+optional,Discord,Discord.Discord,,user
 optional,npiperelay,albertony.npiperelay,npiperelay,

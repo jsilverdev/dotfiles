@@ -149,7 +149,10 @@ function Install-WithWinget {
     if (-not $installed) {
         Write-Host "Installing $AppId..." -ForegroundColor Cyan
         & winget install --id $AppId --exact --source winget @scopeArgs --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
-        if ($LASTEXITCODE -ne 0) { throw "WinGet could not install $AppId in scope '$Scope' (exit code $LASTEXITCODE)." }
+        if ($LASTEXITCODE -ne 0) {
+            $scopeDescription = if ($scopeArgs.Count -gt 0) { $Scope } else { "default" }
+            throw "WinGet could not install $AppId in scope '$scopeDescription' (exit code $LASTEXITCODE)."
+        }
         return
     }
 
