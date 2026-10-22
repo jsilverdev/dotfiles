@@ -14,7 +14,7 @@ workstation,PowerToys,Microsoft.PowerToys,,
 workstation,Visual Studio Code,Microsoft.VisualStudioCode,code,user
 optional,Google Chrome,Google.Chrome,,
 optional,KeePassXC,KeePassXCTeam.KeePassXC,,
-optional,DBeaver,dbeaver.dbeaver,,
+optional,DBeaver,DBeaver.DBeaver.Community,,user
 optional,Postman,Postman.Postman,,user
 optional,Bruno,Bruno.Bruno,,user
 optional,GIMP,GIMP.GIMP,,user
