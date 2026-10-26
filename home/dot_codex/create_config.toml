@@ -1,6 +1,7 @@
 # Initial personal Codex defaults shared across machines.
 
 model_reasoning_effort = "medium"
+approvals_reviewer = "auto_review"
 
 [windows]
 sandbox = "unelevated"
@@ -8,16 +9,19 @@ sandbox = "unelevated"
 [features]
 multi_agent = true
 memories = true
+daemon_auto_start = false
 
 [tui]
 notifications = true
 notification_condition = "always"
 notification_method = "auto"
 session_picker_view = "dense"
-status_line = ["model-with-reasoning", "project-name", "git-branch", "five-hour-limit", "weekly-limit", "context-used", "task-progress"]
+status_line = ["model-with-reasoning", "project-name", "git-branch", "five-hour-limit", "weekly-limit", "context-used", "task-progress", "current-dir"]
 status_line_use_colors = true
 theme = "monokai-extended-origin"
 pet = "disabled"
+screen_reader_detection_done = true
+alternate_screen = "never"
 
 [notice]
 fast_default_opt_out = true
