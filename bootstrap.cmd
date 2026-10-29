@@ -21,7 +21,8 @@ if errorlevel 1 (
     echo WinGet is unavailable after App Installer registration. Check corporate policy or App Installer registration. 1>&2
     goto bootstrap_failed
 )
-call :ensure_package Git.Git git
+set "GIT_INSTALLER_ARGS=/Components=gitlfs,assoc,windowsterminal /o:SSHOption=ExternalOpenSSH /o:CurlOption=WinSSL /o:CRLFOption=CRLFCommitAsIs"
+call :ensure_package Git.Git git "%GIT_INSTALLER_ARGS%"
 if errorlevel 1 goto bootstrap_failed
 call :ensure_package Microsoft.PowerShell pwsh
 if errorlevel 1 goto bootstrap_failed
@@ -88,10 +89,15 @@ exit /b 1
 :ensure_package
 set "PACKAGE_ID=%~1"
 set "PACKAGE_COMMAND=%~2"
+set "PACKAGE_CUSTOM_ARGS=%~3"
 where "%PACKAGE_COMMAND%.exe" >nul 2>&1
 if not errorlevel 1 exit /b 0
 echo Installing %PACKAGE_ID% for the current user...
-winget.exe install --id "%PACKAGE_ID%" --exact --source winget --scope user --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+if defined PACKAGE_CUSTOM_ARGS (
+    winget.exe install --id "%PACKAGE_ID%" --exact --source winget --scope user --silent --disable-interactivity --accept-source-agreements --accept-package-agreements --custom "%PACKAGE_CUSTOM_ARGS%"
+) else (
+    winget.exe install --id "%PACKAGE_ID%" --exact --source winget --scope user --silent --disable-interactivity --accept-source-agreements --accept-package-agreements
+)
 if errorlevel 1 (
     echo Unable to install %PACKAGE_ID% without administrator rights. No machine-scope or portable fallback will be attempted. 1>&2
     exit /b 1

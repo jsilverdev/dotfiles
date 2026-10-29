@@ -22,6 +22,24 @@ if any(row["Scope"] != "user" for row in core):
 if any(row["Category"] not in {"core", "workstation", "optional"} for row in apps):
     raise SystemExit("managed-apps.csv contains an unknown category")
 
+bootstrap = (root / "bootstrap.cmd").read_text(encoding="utf-8")
+required_git_installer_fragments = (
+    'call :ensure_package Git.Git git "%GIT_INSTALLER_ARGS%"',
+    "/Components=gitlfs,assoc,windowsterminal",
+    "/o:SSHOption=ExternalOpenSSH",
+    "/o:CurlOption=WinSSL",
+    "/o:CRLFOption=CRLFCommitAsIs",
+    '--custom "%PACKAGE_CUSTOM_ARGS%"',
+)
+missing_git_installer_fragments = [
+    fragment for fragment in required_git_installer_fragments if fragment not in bootstrap
+]
+if missing_git_installer_fragments:
+    raise SystemExit(
+        "bootstrap.cmd lost required Git installer options: "
+        + ", ".join(missing_git_installer_fragments)
+    )
+
 for name in ("packages-debian.txt", "packages-arch.txt", "required-commands.txt"):
     path = root / "scripts/linux" / name
     lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.lstrip().startswith("#")]
