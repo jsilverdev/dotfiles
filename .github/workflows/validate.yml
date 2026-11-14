@@ -85,7 +85,7 @@ jobs:
           set -eu
           case "${{ matrix.distro }}" in
             debian) apt-get update; apt-get install --yes --no-install-recommends ca-certificates curl git sudo bash ;;
-            arch) pacman -Sy --noconfirm ca-certificates curl git sudo bash ;;
+            arch) pacman -Syu --noconfirm ca-certificates curl git sudo bash ;;
           esac
 
       - uses: actions/checkout@v7
